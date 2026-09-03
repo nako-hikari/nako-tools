@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Lightning Forge — HD Bolt Generator</title>
+<style>
+:root {
+    --bg-color: #0e0e11;
+    --container-bg: #18181f;
+    --input-bg: #0f0f12;
+    --box-bg: #0f0f12;
+    --border-color: #2d2d38;
+    --border-color-hover: #3d3d4c;
+
+    --accent-dark: #663657;
+    --accent-dark-hover: #81456e;
+    --accent-light: #A77A99;
+    --accent-light-hover: #c5a4bc;
+
+    --accent-dark-50:  color-mix(in srgb, var(--accent-dark) 12%, var(--container-bg));
+    --accent-dark-100: color-mix(in srgb, var(--accent-dark) 24%, var(--container-bg));
+    --accent-dark-300: color-mix(in srgb, var(--accent-dark) 60%, var(--container-bg));
+    --accent-dark-700: color-mix(in srgb, var(--accent-dark) 82%, black);
+    --accent-focus-ring: color-mix(in srgb, var(--accent-light) 45%, transparent);
+
+    --accent-dark2: #4a2340;
+    --accent-dark-hover2: #5e2f52;
+    --accent-light2: #8b5fa3;
+    --accent-light-hover2: #a67bc0;
+    --primary: #8b5fa3;
+    --primary-hover: #a67bc0;
+    --secondary: #4a2340;
+    --secondary-hover: #5e2f52;
+
+    --text-bright: #ffffff;
+    --text-main: #b4b4bc;
+    --text-muted: #5a5a66;
+    --text-disabled: #3f3f49;
+    --text-codeblock: #C77E4F;
+    --text-clickable-link: #52BBE8;
+    --text-clickable-link-hover: #7fd0f5;
+    --text-pale-purple: #9575cd;
+
+    --red: #e05c5c;
+    --red-pale: #241616;
+    --green: #4fbc75;
+    --green-pale: #132118;
+    --yellow: #dfb142;
+    --yellow-pale: #242014;
+    --success-bg: #2a4f32;
+    --success-border: #3b6e47;
+
+    --impulse: #C77E4F;
+    --impulse-pale: #261b14;
+    --chain: #76B297;
+    --chain-pale: #18221e;
+    --repeat: #6A4FC7;
+    --repeat-pale: #171424;
+
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", "Roboto Mono", Menlo, Monaco, Consolas, monospace;
+
+    --fs-xs: 11px;
+    --fs-sm: 12px;
+    --fs-base: 14px;
+    --fs-md: 15px;
+    --fs-lg: 1.1rem;
+    --fs-xl: 1.5rem;
+    --fs-2xl: 1.8rem;
+
+    --fw-regular: 400;
+    --fw-medium: 500;
+    --fw-semibold: 600;
+    --fw-bold: 700;
+
+    --lh-tight: 1.3;
+    --lh-normal: 1.5;
+    --lh-relaxed: 1.7;
+    --ls-wide: 0.5px;
+
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 12px;
+    --space-lg: 16px;
+    --space-xl: 20px;
+    --space-2xl: 24px;
+    --space-3xl: 32px;
+    --max-width: 900px;
+
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+    --radius-full: 999px;
+    --border-width: 1px;
+
+    --shadow-xs: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-soft: 0 2px 6px rgba(0, 0, 0, 0.3);
+    --shadow-deep: 0 6px 16px rgba(0, 0, 0, 0.6);
+    --shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.65);
+
+    --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-normal: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-slow: 0.4s cubic-bezier(0.2, 1, 0.2, 1);
+
+    --z-dropdown: 100;
+    --z-sticky: 200;
+    --z-overlay: 300;
+    --z-modal: 400;
+    --z-toast: 500;
+    --z-tooltip: 600;
+
+    color-scheme: light dark;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+img { color-scheme: only light !important; }
+
+body {
+    margin: 0;
+    background: var(--bg-color);
+    color: var(--text-main);
+    font-family: var(--font-body);
+    font-size: var(--fs-base);
+    line-height: var(--lh-normal);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: var(--space-2xl) var(--space-lg);
+    overflow-x: hidden;
+}
+@media (max-width: 768px) { body { padding: var(--space-lg) var(--space-sm); } }
+
+.wrapper { width: 100%; max-width: var(--max-width); display: flex; flex-direction: column; gap: var(--space-lg); }
+
+h1 { font-size: var(--fs-xl); font-weight: var(--fw-semibold); color: var(--text-bright); line-height: var(--lh-tight); }
+h1 span { color: var(--accent-light); }
+
+h2 {
+    font-size: var(--fs-lg);
+    text-transform: uppercase;
+    letter-spacing: var(--ls-wide);
+    font-weight: var(--fw-bold);
+    color: var(--accent-light);
+    margin-bottom: var(--space-md);
+}
+
+.canvas-scroll { width: 100%; overflow-x: auto; }
+
+#canvas-container {
+    position: relative;
+    flex-shrink: 0;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-deep);
+    background-color: var(--box-bg);
+    background-image:
+        linear-gradient(45deg, var(--container-bg) 25%, transparent 25%),
+        linear-gradient(-45deg, var(--container-bg) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, var(--container-bg) 75%),
+        linear-gradient(-45deg, transparent 75%, var(--container-bg) 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    touch-action: none;
+    border: var(--border-width) solid var(--border-color);
+}
+#canvas-container.bg-solid { background-image: none; }
+
+canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
+
+.toolbar {
+    display: flex;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+    background: var(--container-bg);
+    border: var(--border-width) solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: var(--space-md);
+}
+.toolbar button { flex: 1 1 auto; min-width: 110px; }
+
+button {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    background: var(--input-bg);
+    color: var(--text-main);
+    border: var(--border-width) solid var(--border-color);
+    padding: 10px 14px;
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+    font-family: var(--font-body);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: border-color var(--transition-fast), background var(--transition-fast), transform var(--transition-fast), color var(--transition-fast);
+}
+button img { opacity: 0.85; }
+button:hover { border-color: var(--accent-light); }
+button:disabled { opacity: 0.35; cursor: not-allowed; }
+button:disabled:hover { border-color: var(--border-color); }
+
+button.primary { background: var(--accent-dark); border-color: var(--accent-dark-hover); color: var(--text-bright); text-transform: uppercase; letter-spacing: 0.3px; }
+button.primary:hover { background: var(--accent-dark-hover); transform: translateY(-1px); }
+
+button.secondary { background: transparent; opacity: 0.8; }
+button.secondary:hover { opacity: 1; color: var(--text-bright); border-color: var(--accent-light); }
+
+button.danger { background: var(--red); border-color: var(--red); color: var(--text-bright); }
+button.danger:hover { filter: brightness(1.1); }
+
+button.toggle-btn.active { background: var(--accent-dark); border-color: var(--accent-light); color: var(--text-bright); }
+
+button.copied { background: var(--success-bg) !important; border-color: var(--success-border) !important; color: var(--text-bright) !important; }
+
+button:active, .interactive:active {
+    border-color: var(--accent-light-hover) !important;
+    background: #1e1924 !important;
+    transform: scale(0.98) !important;
+}
+button:disabled:active { background: var(--input-bg) !important; border-color: var(--border-color) !important; transform: none !important; }
+
+.card { background: var(--container-bg); border: var(--border-width) solid var(--border-color); border-radius: var(--radius-lg); box-shadow: var(--shadow-deep); padding: var(--space-xl); }
+.card:hover { border-color: var(--border-color-hover); }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: var(--space-lg) var(--space-xl); }
+
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field label { font-size: var(--fs-sm); color: var(--text-main); display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.field label span { color: var(--accent-light); font-weight: var(--fw-semibold); font-family: var(--font-mono); }
+
+.edit-val { flex: 0 0 auto; padding: 2px 5px; border: none; background: none; opacity: 0.5; }
+.edit-val:hover { opacity: 1; border-color: transparent; }
+.edit-val:active { background: none !important; border-color: transparent !important; transform: scale(0.9) !important; }
+
+input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%; height: 4px; border-radius: var(--radius-full);
+    background: var(--border-color);
+    outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 15px; height: 15px; border-radius: 50%;
+    background: var(--accent-light);
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+input[type="range"]::-webkit-slider-thumb:hover { background: var(--accent-light-hover); }
+input[type="range"]::-moz-range-thumb { width: 15px; height: 15px; border-radius: 50%; background: var(--accent-light); border: none; }
+
+input[type="color"] {
+    -webkit-appearance: none;
+    width: 100%; height: 32px;
+    background: var(--input-bg);
+    border: var(--border-width) solid var(--border-color);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+}
+input[type="color"]::-webkit-color-swatch-wrapper { padding: 3px; }
+input[type="color"]::-webkit-color-swatch { border: none; border-radius: 3px; }
+
+input[type="number"], select {
+    width: 100%;
+    background: var(--input-bg);
+    color: var(--text-main);
+    border: var(--border-width) solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 8px 9px;
+    font-family: var(--font-mono);
+    font-size: var(--fs-sm);
+}
+input[type="number"]:focus, select:focus {
+    outline: none;
+    border-color: var(--accent-light);
+    box-shadow: 0 0 0 2px var(--accent-focus-ring);
+}
+select { cursor: pointer; }
+
+.toggle-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); }
+
+.presets { display: flex; gap: var(--space-sm); overflow-x: auto; padding-bottom: 4px; }
+.preset-btn {
+    flex: 0 0 auto;
+    display: flex; align-items: center; gap: 8px;
+    background: var(--input-bg);
+    border: var(--border-width) solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 8px 12px;
+    font-size: var(--fs-sm);
+    color: var(--text-main);
+    cursor: pointer;
+    white-space: nowrap;
+}
+.preset-btn .dot { width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 6px currentColor; }
+.preset-btn.active { border-color: var(--accent-light); color: var(--text-bright); background: var(--accent-dark-100); }
+
+.hint { font-size: var(--fs-sm); color: var(--text-muted); }
+
+* { scrollbar-color: var(--border-color) var(--bg-color); scrollbar-width: thin; }
+::-webkit-scrollbar { width: 8px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-color); }
+::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: var(--radius-sm); }
+::-webkit-scrollbar-thumb:hover { background: var(--border-color-hover); }
+
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: var(--z-modal); align-items: center; justify-content: center; padding: var(--space-lg); }
+.modal-overlay.open { display: flex; }
+.modal-box { width: min(380px, 100%); display: flex; flex-direction: column; gap: var(--space-md); }
+.modal-box h2 { margin: 0; display: flex; align-items: center; gap: 8px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: var(--space-sm); }
+
+.footer { margin-top: var(--space-2xl, 32px); padding-bottom: var(--space-lg, 16px); text-align: center; display: flex; flex-direction: column; gap: var(--space-sm, 8px); align-items: center; width: 100%; }
+.footer-title { font-size: 12px; color: var(--text-muted, #5a5a66); opacity: 0.75; letter-spacing: 0.5px; }
+.footer-links { display: flex; gap: var(--space-md, 12px); flex-wrap: wrap; justify-content: center; }
+.footer-links a { display: flex; align-items: center; gap: 6px; color: var(--accent-light, #A77A99); text-decoration: none; font-size: 13px; opacity: 0.85; transition: opacity var(--transition-fast, 0.15s), color var(--transition-fast, 0.15s); }
+.footer-links a:hover { color: var(--accent-light-hover, #c5a4bc); opacity: 1; }
+.footer-links img { width: 16px; height: 16px; color-scheme: dark !important; filter: brightness(0) invert(1) !important; opacity: 0.9; }
+.footer-links a.kofi { color: #ff5fa2; font-weight: 500; }
+.footer-links a.kofi:hover { color: #ff8fc0; }
+.footer-links a.kofi img { width: 20px; height: 20px; color-scheme: dark !important; filter: brightness(0) invert(1) !important; opacity: 0.95; }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+    <h1>Lightning <span>Forge</span></h1>
+
+    <div class="canvas-scroll">
+        <div id="canvas-container">
+            <canvas id="lightningCanvas"></canvas>
+        </div>
+    </div>
+
+    <div class="toolbar">
+        <button id="multiLineBtn" class="secondary toggle-btn">Mode: Single Line</button>
+        <button id="undoBtn" class="secondary" disabled><img src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/back_arrow.png" width="14" height="14" alt="">Undo Line</button>
+        <button id="randomizeBtn" class="secondary"><img src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/refresh.png" width="14" height="14" alt="">Randomize Shape</button>
+        <button id="generateBtn" class="primary" disabled>Generate</button>
+        <button id="clearBtn" class="secondary"><img src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/trash.png" width="14" height="14" alt="">Clear</button>
+        <button id="copyBtn" class="secondary" disabled><img src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/copy.png" width="14" height="14" alt="">Copy PNG</button>
+        <button id="downloadBtn" class="primary" disabled><img src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/download.png" width="14" height="14" alt="">Save HD PNG</button>
+    </div>
+
+    <div class="card">
+        <h2>Canvas</h2>
+        <div class="grid">
+            <div class="field"><label>Width <span id="canvasWidthVal">345px</span></label>
+                <input type="range" id="canvasWidth" min="200" max="2400" step="5" value="345"></div>
+            <div class="field"><label>Height <span id="canvasHeightVal">345px</span></label>
+                <input type="range" id="canvasHeight" min="150" max="1400" step="5" value="345"></div>
+            <div class="field"><label>Backdrop</label>
+                <select id="backdropMode">
+                    <option value="checker">Checkerboard</option>
+                    <option value="dark">Solid Dark</option>
+                    <option value="custom">Custom Color</option>
+                </select></div>
+            <div class="field" id="backdropColorField" style="display:none">
+                <label>Backdrop Color</label>
+                <input type="color" id="backdropColor" value="#0e0e11"></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Presets — Shape</h2>
+        <div class="presets" id="shapePresetRow"></div>
+        <p class="hint" style="margin-top:var(--space-sm)">Only touches structure sliders — your colors and glow stay put.</p>
+    </div>
+
+    <div class="card">
+        <h2>Presets — Color &amp; Glow</h2>
+        <div class="presets" id="colorPresetRow"></div>
+        <p class="hint" style="margin-top:var(--space-sm)">Only touches colors, glow and sparks — your shape sliders stay put.</p>
+    </div>
+
+    <div class="card">
+        <h2>Structure</h2>
+        <div class="grid">
+            <div class="field"><label>Strand Count <span id="strandCountVal">3</span></label>
+                <input type="range" id="strandCount" min="1" max="6" step="1" value="3"></div>
+            <div class="field"><label>Strand Spread <span id="strandSpreadVal">12px</span></label>
+                <input type="range" id="strandSpread" min="0" max="60" step="1" value="12"></div>
+            <div class="field"><label>Main Thickness <span id="mainThickVal">3.5px</span></label>
+                <input type="range" id="mainThick" min="1" max="14" step="0.5" value="3.5"></div>
+            <div class="field"><label>Taper Strength <span id="taperVal">70%</span></label>
+                <input type="range" id="taper" min="0" max="100" step="5" value="70"></div>
+            <div class="field"><label>Tip Sharpness <span id="tipSharpnessVal">50%</span></label>
+                <input type="range" id="tipSharpness" min="0" max="100" step="5" value="50"></div>
+            <div class="field"><label>Fork Frequency <span id="forkFreqVal">25%</span></label>
+                <input type="range" id="forkFreq" min="0" max="70" step="5" value="25"></div>
+            <div class="field"><label>Branch Length <span id="branchLenVal">40%</span></label>
+                <input type="range" id="branchLen" min="10" max="70" step="5" value="40"></div>
+            <div class="field"><label>Jaggedness <span id="jaggednessVal">30%</span></label>
+                <input type="range" id="jaggedness" min="10" max="60" step="5" value="30"></div>
+            <div class="field"><label>Detail <span id="detailVal">25px</span></label>
+                <input type="range" id="detail" min="8" max="45" step="1" value="25"></div>
+            <div class="field"><label>Line Cap</label>
+                <select id="lineCapMode"><option value="round">Round</option><option value="butt">Flat / Sharp Cut</option></select></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Color &amp; Glow</h2>
+        <div class="grid">
+            <div class="field"><label>Bolt Color</label><input type="color" id="boltColor" value="#A77A99"></div>
+            <div class="field"><label>Core Color</label><input type="color" id="coreColor" value="#f5eaff"></div>
+            <div class="field"><label>Glow Color</label><input type="color" id="glowColor" value="#663657"></div>
+            <div class="field"><label>Spark Color</label><input type="color" id="sparkColor" value="#e8d3ff"></div>
+
+            <div class="field toggle-row"><label style="margin:0">Hot Core</label>
+                <button id="coreToggle" class="secondary toggle-btn active" style="flex:0 0 auto">On</button></div>
+            <div class="field toggle-row"><label style="margin:0">Glow</label>
+                <button id="glowToggle" class="secondary toggle-btn" style="flex:0 0 auto">Off</button></div>
+            <div class="field toggle-row"><label style="margin:0">Sparks</label>
+                <button id="sparksToggle" class="secondary toggle-btn" style="flex:0 0 auto">Off</button></div>
+
+            <div class="field"><label>Glow Intensity <span id="glowIntensityVal">16px</span></label>
+                <input type="range" id="glowIntensity" min="2" max="40" step="1" value="16"></div>
+            <div class="field"><label>Glow Opacity <span id="glowOpacityVal">55%</span></label>
+                <input type="range" id="glowOpacity" min="10" max="100" step="5" value="55"></div>
+            <div class="field"><label>Spark Density <span id="sparkDensityVal">40%</span></label>
+                <input type="range" id="sparkDensity" min="0" max="100" step="5" value="40"></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Export</h2>
+        <div class="grid">
+            <div class="field"><label>HD Export Scale <span id="exportScaleVal">3x</span></label>
+                <input type="range" id="exportScale" min="1" max="6" step="1" value="3"></div>
+            <div class="field"><label>Export Background</label>
+                <select id="exportBgMode"><option value="transparent">Transparent</option><option value="solid">Solid Color</option></select></div>
+            <div class="field" id="exportBgColorField" style="display:none">
+                <label>Background Color</label>
+                <input type="color" id="exportBgColor" value="#0e0e11"></div>
+        </div>
+        <p class="hint" style="margin-top:var(--space-md)">Transparent export keeps a clean alpha channel — drop it straight over game footage or art. Every slider's little pencil icon opens a box to type a value past its normal range, if you need to push something further.</p>
+    </div>
+
+    <div class="footer">
+        <div class="footer-title">By Nako Hikari</div>
+        <div class="footer-links">
+            <a href="https://github.com/nako-hikari/" target="_blank" class="social">
+                <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/github.svg" alt="GitHub">GitHub
+            </a>
+            <a href="https://m.youtube.com/@NaCryst" target="_blank" class="social">
+                <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/youtube.svg" alt="YouTube">YouTube
+            </a>
+            <a href="https://www.tiktok.com/@nako_hikari_mc" target="_blank" class="social">
+                <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/tiktok.svg" alt="TikTok">TikTok
+            </a>
+            <a href="https://ko-fi.com/arialicee" target="_blank" class="social kofi">
+                <img src="https://raw.githubusercontent.com/nako-hikari/support-files/main/assets/kofi-icon.png" alt="Ko-fi">Support me on Ko-fi
+            </a>
+        </div>
+    </div>
+
+</div>
+
+<div class="modal-overlay" id="editOverlay">
+    <div class="card modal-box">
+        <h2 id="editTitle">Set Value</h2>
+        <input type="number" id="editInput" step="any">
+        <p class="hint" id="editHint"></p>
+        <p class="hint" id="editError" style="display:none;color:var(--red)"></p>
+        <div class="modal-actions">
+            <button type="button" class="secondary" id="editCancel"><img src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/close.png" width="14" height="14" alt="">Cancel</button>
+            <button type="button" class="primary" id="editConfirm"><img src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/checkmark.png" width="14" height="14" alt="">Confirm</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="lagOverlay">
+    <div class="card modal-box">
+        <h2><img src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/warning.png" width="18" height="18" alt="">Lag Warning</h2>
+        <p class="hint" id="lagText"></p>
+        <div class="modal-actions">
+            <button type="button" class="secondary" id="lagNo">No, go back</button>
+            <button type="button" class="danger" id="lagYes">Yes, apply anyway</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const container = document.getElementById('canvas-container');
+const canvasScroll = document.querySelector('.canvas-scroll');
+const canvas = document.getElementById('lightningCanvas');
+const ctx = canvas.getContext('2d');
+
+const generateBtn = document.getElementById('generateBtn');
+const clearBtn = document.getElementById('clearBtn');
+const downloadBtn = document.getElementById('downloadBtn');
+const copyBtn = document.getElementById('copyBtn');
+const undoBtn = document.getElementById('undoBtn');
+const randomizeBtn = document.getElementById('randomizeBtn');
+const multiLineBtn = document.getElementById('multiLineBtn');
+const backdropMode = document.getElementById('backdropMode');
+const backdropColor = document.getElementById('backdropColor');
+const backdropColorField = document.getElementById('backdropColorField');
+const lineCapMode = document.getElementById('lineCapMode');
+
+const FIELDS = {
+    canvasWidth:   { label: 'Canvas Width',    unit: 'px', decimals: 0, lagAbove: 2600, group: 'canvas' },
+    canvasHeight:  { label: 'Canvas Height',   unit: 'px', decimals: 0, lagAbove: 1600, group: 'canvas' },
+    strandCount:   { label: 'Strand Count',    unit: '',   decimals: 0, lagAbove: 14,   group: 'shape' },
+    strandSpread:  { label: 'Strand Spread',   unit: 'px', decimals: 0, lagAbove: 250,  group: 'shape' },
+    mainThick:     { label: 'Main Thickness',  unit: 'px', decimals: 1, lagAbove: 60,   group: 'shape' },
+    taper:         { label: 'Taper Strength',  unit: '%',  decimals: 0, lagAbove: 400,  group: 'shape' },
+    tipSharpness:  { label: 'Tip Sharpness',   unit: '%',  decimals: 0, lagAbove: 400,  group: 'shape' },
+    forkFreq:      { label: 'Fork Frequency',  unit: '%',  decimals: 0, lagAbove: 92,   group: 'shape' },
+    branchLen:     { label: 'Branch Length',   unit: '%',  decimals: 0, lagAbove: 300,  group: 'shape' },
+    jaggedness:    { label: 'Jaggedness',      unit: '%',  decimals: 0, lagAbove: 300,  group: 'shape' },
+    detail:        { label: 'Detail',          unit: 'px', decimals: 0, lagBelow: 4,    group: 'shape' },
+    glowIntensity: { label: 'Glow Intensity',  unit: 'px', decimals: 0, lagAbove: 120,  group: 'color' },
+    glowOpacity:   { label: 'Glow Opacity',    unit: '%',  decimals: 0, lagAbove: 300,  group: 'color' },
+    sparkDensity:  { label: 'Spark Density',   unit: '%',  decimals: 0, lagAbove: 400,  group: 'color' },
+    exportScale:   { label: 'Export Scale',    unit: 'x',  decimals: 0, lagAbove: 10,   group: 'export' }
+};
+
+const els = {};
+Object.keys(FIELDS).forEach(id => els[id] = document.getElementById(id));
+['boltColor','coreColor','glowColor','sparkColor','exportBgMode','exportBgColor'].forEach(id => els[id] = document.getElementById(id));
+
+const coreToggle = document.getElementById('coreToggle');
+const glowToggle = document.getElementById('glowToggle');
+const sparksToggle = document.getElementById('sparksToggle');
+const exportBgColorField = document.getElementById('exportBgColorField');
+
+let state = { core: true, glow: false, sparks: false };
+
+function bindToggle(btn, key) {
+    btn.addEventListener('click', () => {
+        state[key] = !state[key];
+        btn.classList.toggle('active', state[key]);
+        btn.textContent = state[key] ? 'On' : 'Off';
+        render();
+    });
+}
+bindToggle(coreToggle, 'core');
+bindToggle(glowToggle, 'glow');
+bindToggle(sparksToggle, 'sparks');
+
+document.getElementById('exportBgMode').addEventListener('change', () => {
+    exportBgColorField.style.display = els.exportBgMode.value === 'solid' ? 'flex' : 'none';
+});
+
+function fmt(id, val) {
+    const f = FIELDS[id];
+    return (+val).toFixed(f.decimals) + f.unit;
+}
+
+function onFieldChange(id) {
+    const f = FIELDS[id];
+    document.getElementById(id + 'Val').textContent = fmt(id, els[id].value);
+    if (f.group === 'canvas') { applyCanvasSize(+els.canvasWidth.value, +els.canvasHeight.value); return; }
+    if (f.group === 'shape' || id === 'sparkDensity') { if (pathsList.length) generateLightning(); return; }
+    render();
+}
+Object.keys(FIELDS).forEach(id => els[id].addEventListener('input', () => onFieldChange(id)));
+
+els.boltColor.addEventListener('input', render);
+els.coreColor.addEventListener('input', render);
+els.glowColor.addEventListener('input', render);
+els.sparkColor.addEventListener('input', render);
+lineCapMode.addEventListener('change', render);
+
+backdropMode.addEventListener('change', () => {
+    backdropColorField.style.display = backdropMode.value === 'custom' ? 'flex' : 'none';
+    applyBackdrop();
+});
+backdropColor.addEventListener('input', applyBackdrop);
+function applyBackdrop() {
+    const v = backdropMode.value;
+    if (v === 'checker') { container.classList.remove('bg-solid'); container.style.background = ''; }
+    else if (v === 'dark') { container.classList.add('bg-solid'); container.style.background = 'var(--box-bg)'; }
+    else { container.classList.add('bg-solid'); container.style.background = backdropColor.value; }
+}
+
+// ---- numeral override modal ----
+const editOverlay = document.getElementById('editOverlay');
+const editInput = document.getElementById('editInput');
+const editTitle = document.getElementById('editTitle');
+const editHint = document.getElementById('editHint');
+const editError = document.getElementById('editError');
+const lagOverlay = document.getElementById('lagOverlay');
+const lagText = document.getElementById('lagText');
+let pendingField = null;
+
+Object.keys(FIELDS).forEach(id => {
+    const span = document.getElementById(id + 'Val');
+    if (!span) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'edit-val';
+    btn.innerHTML = `<img src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/edit_pencil.png" width="12" height="12" alt="Edit ${FIELDS[id].label}">`;
+    span.after(btn);
+    btn.addEventListener('click', () => openEditModal(id));
+});
+
+function openEditModal(id) {
+    pendingField = id;
+    const f = FIELDS[id];
+    editInput.value = els[id].value;
+    editTitle.textContent = 'Set ' + f.label;
+    editHint.textContent = `Slider currently spans ${els[id].min}–${els[id].max}${f.unit}. Type anything beyond that and the slider stretches to fit.`;
+    editError.style.display = 'none';
+    editOverlay.classList.add('open');
+    setTimeout(() => { editInput.focus(); editInput.select(); }, 0);
+}
+
+document.getElementById('editCancel').addEventListener('click', () => editOverlay.classList.remove('open'));
+
+document.getElementById('editConfirm').addEventListener('click', () => {
+    const num = parseFloat(editInput.value);
+    if (editInput.value.trim() === '' || isNaN(num)) {
+        editError.textContent = 'That\'s not a number.';
+        editError.style.display = 'block';
+        return;
+    }
+    const f = FIELDS[pendingField];
+    const risky = (f.lagAbove !== undefined && num > f.lagAbove) || (f.lagBelow !== undefined && num < f.lagBelow);
+    if (risky) {
+        editOverlay.classList.remove('open');
+        lagText.textContent = `${num}${f.unit} for ${f.label} is way past what this tool is tuned for — could get slow, especially at export time. Apply it anyway?`;
+        lagOverlay.classList.add('open');
+        return;
+    }
+    applyFieldValue(pendingField, num);
+    editOverlay.classList.remove('open');
+});
+
+document.getElementById('lagNo').addEventListener('click', () => {
+    lagOverlay.classList.remove('open');
+    editOverlay.classList.add('open');
+});
+document.getElementById('lagYes').addEventListener('click', () => {
+    applyFieldValue(pendingField, parseFloat(editInput.value));
+    lagOverlay.classList.remove('open');
+});
+
+function applyFieldValue(id, num) {
+    const el = els[id];
+    if (num > +el.max) el.max = num;
+    if (num < +el.min) el.min = num;
+    el.value = num;
+    onFieldChange(id);
+}
+
+randomizeBtn.addEventListener('click', () => {
+    Object.entries(FIELDS).forEach(([id, f]) => {
+        if (f.group !== 'shape') return;
+        const el = els[id];
+        const min = +el.min, max = +el.max;
+        const step = +el.step || 1;
+        let val = Math.round((min + Math.random() * (max - min)) / step) * step;
+        el.value = val.toFixed(f.decimals);
+        onFieldChange(id);
+    });
+});
+
+// ---- canvas & drawing ----
+let dpr = window.devicePixelRatio || 1;
+let pathsList = [];
+let currentPath = [];
+let bolts = [];
+let sparks = [];
+let isDrawing = false;
+let isMultiLine = false;
+
+container.style.width = els.canvasWidth.value + 'px';
+container.style.height = els.canvasHeight.value + 'px';
+
+multiLineBtn.addEventListener('click', () => {
+    isMultiLine = !isMultiLine;
+    multiLineBtn.classList.toggle('active', isMultiLine);
+    multiLineBtn.textContent = isMultiLine ? 'Mode: Multi Line' : 'Mode: Single Line';
+});
+
+function applyCanvasSize(newW, newH) {
+    const oldW = container.offsetWidth || newW;
+    const oldH = container.offsetHeight || newH;
+    const sx = newW / oldW, sy = newH / oldH;
+    if (sx !== 1 || sy !== 1) {
+        pathsList.forEach(p => p.forEach(pt => { pt.x *= sx; pt.y *= sy; }));
+        bolts.forEach(b => { b.start.x *= sx; b.start.y *= sy; b.end.x *= sx; b.end.y *= sy; });
+        sparks.forEach(s => { s.x *= sx; s.y *= sy; });
+    }
+    container.style.width = newW + 'px';
+    container.style.height = newH + 'px';
+    resizeCanvas();
+}
+
+function resizeCanvas() {
+    const rect = container.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (bolts.length) render(); else drawGuidePaths();
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+function getCanvasCoords(e) {
+    const rect = container.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+}
+
+canvas.addEventListener('pointerdown', e => {
+    if (!e.isPrimary) return;
+    isDrawing = true;
+    if (!isMultiLine) {
+        pathsList = [];
+        bolts = [];
+        downloadBtn.disabled = true;
+        copyBtn.disabled = true;
+    }
+    currentPath = [getCanvasCoords(e)];
+    drawGuidePaths();
+});
+
+canvas.addEventListener('pointermove', e => {
+    if (!isDrawing || !e.isPrimary) return;
+    currentPath.push(getCanvasCoords(e));
+    drawGuidePaths();
+});
+
+const stopDrawing = () => {
+    if (!isDrawing) return;
+    isDrawing = false;
+    if (currentPath.length > 1) {
+        pathsList.push(currentPath);
+        currentPath = [];
+        generateBtn.disabled = false;
+        undoBtn.disabled = false;
+        generateLightning();
+    }
+};
+canvas.addEventListener('pointerup', stopDrawing);
+canvas.addEventListener('pointercancel', stopDrawing);
+
+function drawGuidePaths() {
+    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 4]);
+    const all = currentPath.length ? [...pathsList, currentPath] : pathsList;
+    all.forEach(path => {
+        if (path.length < 2) return;
+        ctx.beginPath();
+        ctx.moveTo(path[0].x, path[0].y);
+        for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
+        ctx.stroke();
+    });
+    ctx.setLineDash([]);
+}
+
+clearBtn.addEventListener('click', () => {
+    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+    pathsList = []; currentPath = []; bolts = []; sparks = [];
+    generateBtn.disabled = true;
+    downloadBtn.disabled = true;
+    copyBtn.disabled = true;
+    undoBtn.disabled = true;
+});
+
+undoBtn.addEventListener('click', () => {
+    pathsList.pop();
+    if (!pathsList.length) {
+        bolts = []; sparks = [];
+        downloadBtn.disabled = true; copyBtn.disabled = true; undoBtn.disabled = true; generateBtn.disabled = true;
+        ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+        return;
+    }
+    generateLightning();
+});
+
+generateBtn.addEventListener('click', generateLightning);
+
+function generateLightning() {
+    if (!pathsList.length) return;
+    bolts = [];
+    sparks = [];
+
+    const tipFloor = Math.max(0.05, 2.4 - (+els.tipSharpness.value / 100) * 2.35);
+    const opts = {
+        jag: +els.jaggedness.value / 100,
+        forkProb: +els.forkFreq.value / 100,
+        branchLen: +els.branchLen.value / 100,
+        sparkChance: state.sparks ? (+els.sparkDensity.value / 100) * 0.5 : 0,
+        tipFloor
+    };
+    const strands = +els.strandCount.value;
+    const spread = +els.strandSpread.value;
+    const thickness = +els.mainThick.value;
+    const taper = +els.taper.value / 100;
+    const detail = +els.detail.value;
+
+    pathsList.forEach(raw => {
+        const pts = simplifyPath(raw, detail);
+        for (let s = 0; s < strands; s++) {
+            const strandPts = pts.map((p, i) => i === 0 ? p : {
+                x: p.x + (Math.random() - 0.5) * (spread * (s / Math.max(1, strands - 1))),
+                y: p.y + (Math.random() - 0.5) * (spread * (s / Math.max(1, strands - 1)))
+            });
+            for (let i = 0; i < strandPts.length - 1; i++) {
+                const p0 = i / strandPts.length, p1 = (i + 1) / strandPts.length;
+                const t0 = Math.max(tipFloor + 0.3, thickness * (1 - p0 * taper));
+                const t1 = Math.max(tipFloor, thickness * (1 - p1 * taper));
+                buildSubBolts(strandPts[i], strandPts[i + 1], t0, t1, 0, true, opts);
+            }
+        }
+    });
+
+    render();
+    downloadBtn.disabled = false;
+    copyBtn.disabled = false;
+}
+
+function buildSubBolts(start, end, t0, t1, depth, isMain, opts) {
+    const dx = end.x - start.x, dy = end.y - start.y;
+    const dist = Math.hypot(dx, dy);
+
+    if (dist < 5 || depth > 6) {
+        bolts.push({ start, end, thickness: (t0 + t1) / 2 });
+        if (Math.random() < opts.sparkChance * 0.4) sparks.push({ x: end.x, y: end.y, r: 0.5 + Math.random() * 1.5 });
+        return;
+    }
+
+    const midThick = (t0 + t1) / 2;
+    const maxOffset = dist * opts.jag;
+    const nx = -dy / dist, ny = dx / dist;
+    const offset = (Math.random() - 0.5) * 2 * maxOffset;
+    const mid = { x: (start.x + end.x) / 2 + nx * offset, y: (start.y + end.y) / 2 + ny * offset };
+
+    buildSubBolts(start, mid, t0, midThick, depth + 1, isMain, opts);
+
+    const forkChance = isMain ? opts.forkProb : opts.forkProb * 0.3;
+    if (Math.random() < forkChance && depth < 5) {
+        const angle = Math.atan2(dy, dx) + (Math.random() - 0.5) * 0.9;
+        const len = dist * (opts.branchLen + Math.random() * 0.5);
+        const branchEnd = { x: mid.x + Math.cos(angle) * len, y: mid.y + Math.sin(angle) * len };
+        buildSubBolts(mid, branchEnd, midThick * 0.6, opts.tipFloor, depth + 1, false, opts);
+        if (Math.random() < opts.sparkChance) sparks.push({ x: mid.x, y: mid.y, r: 0.8 + Math.random() * 2 });
+    }
+
+    buildSubBolts(mid, end, midThick, t1, depth + 1, isMain, opts);
+}
+
+function simplifyPath(points, minDist) {
+    const result = [points[0]];
+    let last = points[0];
+    for (let i = 1; i < points.length; i++) {
+        if (Math.hypot(points[i].x - last.x, points[i].y - last.y) >= minDist) {
+            result.push(points[i]);
+            last = points[i];
+        }
+    }
+    if (result[result.length - 1] !== points[points.length - 1]) result.push(points[points.length - 1]);
+    return result;
+}
+
+function strokeBolts(tctx, scale, widthMul) {
+    bolts.forEach(b => {
+        tctx.lineWidth = Math.max(0.5, b.thickness * scale * widthMul);
+        tctx.beginPath();
+        tctx.moveTo(b.start.x * scale, b.start.y * scale);
+        tctx.lineTo(b.end.x * scale, b.end.y * scale);
+        tctx.stroke();
+    });
+}
+
+function renderToContext(tctx, scale, bgMode, bgColor) {
+    tctx.lineCap = lineCapMode.value;
+    tctx.lineJoin = 'round';
+
+    if (bgMode === 'solid') {
+        tctx.fillStyle = bgColor;
+        tctx.fillRect(0, 0, tctx.canvas.width, tctx.canvas.height);
+    }
+
+    if (state.glow) {
+        tctx.save();
+        tctx.shadowColor = els.glowColor.value;
+        tctx.shadowBlur = (+els.glowIntensity.value) * scale;
+        tctx.strokeStyle = els.glowColor.value;
+        tctx.globalAlpha = +els.glowOpacity.value / 100;
+        strokeBolts(tctx, scale, 1.6);
+        tctx.restore();
+    }
+
+    tctx.globalAlpha = 1;
+    tctx.shadowBlur = 0;
+    tctx.strokeStyle = els.boltColor.value;
+    strokeBolts(tctx, scale, 1);
+
+    if (state.core) {
+        tctx.strokeStyle = els.coreColor.value;
+        strokeBolts(tctx, scale, 0.35);
+    }
+
+    if (state.sparks) {
+        tctx.fillStyle = els.sparkColor.value;
+        sparks.forEach(sp => {
+            tctx.beginPath();
+            tctx.arc(sp.x * scale, sp.y * scale, sp.r * scale, 0, Math.PI * 2);
+            tctx.fill();
+        });
+    }
+}
+
+function render() {
+    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+    renderToContext(ctx, 1, 'transparent');
+}
+
+function buildExportCanvas() {
+    const scale = +els.exportScale.value;
+    const rect = container.getBoundingClientRect();
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = rect.width * scale;
+    exportCanvas.height = rect.height * scale;
+    const exportCtx = exportCanvas.getContext('2d');
+    renderToContext(exportCtx, scale, els.exportBgMode.value, els.exportBgColor.value);
+    return exportCanvas;
+}
+
+downloadBtn.addEventListener('click', () => {
+    if (!bolts.length) return;
+    const exportCanvas = buildExportCanvas();
+    const link = document.createElement('a');
+    link.download = `lightning_${exportCanvas.width}x${exportCanvas.height}.png`;
+    link.href = exportCanvas.toDataURL('image/png');
+    link.click();
+});
+
+copyBtn.addEventListener('click', () => {
+    if (!bolts.length) return;
+    const exportCanvas = buildExportCanvas();
+    exportCanvas.toBlob(blob => {
+        navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(() => {
+            copyBtn.classList.add('copied');
+            copyBtn.textContent = 'Copied!';
+            setTimeout(() => { copyBtn.classList.remove('copied'); copyBtn.innerHTML = '<img src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/copy.png" width="14" height="14" alt="">Copy PNG'; }, 1300);
+        }).catch(console.error);
+    });
+});
+
+// ---- presets ----
+const SHAPE_PRESETS = [
+    { name: 'Thin Wisp', s: { strandCount: 1, strandSpread: 6, mainThick: 1.5, taper: 80, tipSharpness: 70, forkFreq: 10, branchLen: 30, jaggedness: 20, detail: 20 } },
+    { name: 'Thick Storm', s: { strandCount: 6, strandSpread: 30, mainThick: 8, taper: 50, tipSharpness: 30, forkFreq: 45, branchLen: 50, jaggedness: 35, detail: 18 } },
+    { name: 'Chaotic Web', s: { strandCount: 4, strandSpread: 22, mainThick: 4, taper: 55, tipSharpness: 40, forkFreq: 60, branchLen: 55, jaggedness: 50, detail: 14 } },
+    { name: 'Clean Bolt', s: { strandCount: 1, strandSpread: 2, mainThick: 4, taper: 65, tipSharpness: 50, forkFreq: 0, branchLen: 30, jaggedness: 12, detail: 30 } },
+    { name: 'Needle Strike', s: { strandCount: 2, strandSpread: 10, mainThick: 3, taper: 85, tipSharpness: 95, forkFreq: 15, branchLen: 35, jaggedness: 25, detail: 22 } }
+];
+
+const COLOR_PRESETS = [
+    { name: 'Nako Purple', bolt: '#A77A99', core: '#f5eaff', glow: '#663657', spark: '#e8d3ff', fx: { core: true, glow: false, sparks: false }, glowIntensity: 16, glowOpacity: 55, sparkDensity: 40 },
+    { name: 'cool Red', bolt: '#ff3b57', core: '#fff2f0', glow: '#ff1636', spark: '#ffe4d6', fx: { core: true, glow: true, sparks: true }, glowIntensity: 22, glowOpacity: 60, sparkDensity: 55 },
+    { name: 'Arctic Blue', bolt: '#4fb8ff', core: '#eaf7ff', glow: '#1c8fff', spark: '#d7f0ff', fx: { core: true, glow: true, sparks: false }, glowIntensity: 14, glowOpacity: 45, sparkDensity: 40 },
+    { name: 'Toxic Green', bolt: '#6dff6d', core: '#f2fff0', glow: '#2fbf3f', spark: '#c8ffb8', fx: { core: true, glow: true, sparks: true }, glowIntensity: 18, glowOpacity: 50, sparkDensity: 35 },
+    { name: 'Classic White', bolt: '#ffffff', core: '#ffffff', glow: '#ffffff', spark: '#ffffff', fx: { core: false, glow: false, sparks: false }, glowIntensity: 16, glowOpacity: 55, sparkDensity: 40 },
+    { name: 'Amber Gold', bolt: '#ffb23e', core: '#fff6e0', glow: '#ff8a00', spark: '#ffe4a3', fx: { core: true, glow: true, sparks: true }, glowIntensity: 18, glowOpacity: 55, sparkDensity: 45 },
+    { name: 'Hot Pink', bolt: '#ff4fd8', core: '#fff0fb', glow: '#ff17c4', spark: '#ffd6f5', fx: { core: true, glow: true, sparks: true }, glowIntensity: 20, glowOpacity: 55, sparkDensity: 50 },
+    { name: 'Cyan Storm', bolt: '#3ef1ff', core: '#eafffe', glow: '#00c9d6', spark: '#c8fbff', fx: { core: true, glow: true, sparks: false }, glowIntensity: 16, glowOpacity: 50, sparkDensity: 30 }
+];
+
+const shapeRow = document.getElementById('shapePresetRow');
+SHAPE_PRESETS.forEach((p, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'preset-btn' + (idx === 0 ? ' active' : '');
+    btn.textContent = p.name;
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('#shapePresetRow .preset-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        Object.entries(p.s).forEach(([id, val]) => { els[id].value = val; onFieldChange(id); });
+    });
+    shapeRow.appendChild(btn);
+});
+
+const colorRow = document.getElementById('colorPresetRow');
+COLOR_PRESETS.forEach((p, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'preset-btn' + (idx === 0 ? ' active' : '');
+    btn.innerHTML = `<span class="dot" style="background:${p.bolt};color:${p.bolt}"></span>${p.name}`;
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('#colorPresetRow .preset-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        els.boltColor.value = p.bolt;
+        els.coreColor.value = p.core;
+        els.glowColor.value = p.glow;
+        els.sparkColor.value = p.spark;
+        els.glowIntensity.value = p.glowIntensity; onFieldChange('glowIntensity');
+        els.glowOpacity.value = p.glowOpacity; onFieldChange('glowOpacity');
+        els.sparkDensity.value = p.sparkDensity; onFieldChange('sparkDensity');
+        state.core = p.fx.core; coreToggle.classList.toggle('active', state.core); coreToggle.textContent = state.core ? 'On' : 'Off';
+        state.glow = p.fx.glow; glowToggle.classList.toggle('active', state.glow); glowToggle.textContent = state.glow ? 'On' : 'Off';
+        state.sparks = p.fx.sparks; sparksToggle.classList.toggle('active', state.sparks); sparksToggle.textContent = state.sparks ? 'On' : 'Off';
+        render();
+    });
+    colorRow.appendChild(btn);
+});
+</script>
+</body>
+</html>
