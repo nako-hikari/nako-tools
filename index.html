@@ -19,7 +19,7 @@
     --border-color: #2d2d38;
     --border-color-hover: #3d3d4c;
 
-    --accent-dark: #663657;      /* BRAND PURPLE — never change this value */
+    --accent-dark: #663657;      
     --accent-dark-hover: #81456e;
     --accent-light: #A77A99;
     --accent-light-hover: #c5a4bc;
@@ -444,12 +444,9 @@ document.getElementById('sort-select').addEventListener('change', render);
 
 loadTools();
 
-// Register the no-op service worker purely so the browser offers "Install".
-// It doesn't cache anything — see service-worker.js.
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('/service-worker.js').catch(() => {
-            // Installability just won't be offered — page still works fine.
         });
     });
 }
