@@ -1,14 +1,57 @@
 const fs = require('fs');
 const path = require('path');
 
+const EIGHT_YEARS_MS = 8 * 365.25 * 24 * 60 * 60 * 1000;
+
 function toDisplayName(folderName) {
   return folderName
-    .replace(/[-_]+/g, ' ')      // turn - and _ into " " forgot what's it called 
+    .replace(/[-_]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
     .split(' ')
     .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(' ');
+}
+
+function readMetaDate(folderPath) {
+  const metaPath = path.join(folderPath, 'meta.json');
+  if (!fs.existsSync(metaPath)) return null;
+  try {
+    const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+    if (meta.dateAdded) return new Date(meta.dateAdded).toISOString();
+  } catch (err) {
+
+  }
+  return null;
+}
+
+function scanDir(dirPath, folderName, relPath) {
+  const indexPath = path.join(dirPath, 'index.html');
+
+  if (fs.existsSync(indexPath)) {
+    return {
+      type: 'tool',
+      folder: folderName,
+      name: toDisplayName(folderName),
+      path: `/tools/${relPath}/index.html`,
+      dateAdded: readMetaDate(dirPath) || new Date(Date.now() - EIGHT_YEARS_MS).toISOString(),
+    };
+  }
+
+  const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+  const children = entries
+    .filter(e => e.isDirectory())
+    .map(e => scanDir(path.join(dirPath, e.name), e.name, `${relPath}/${e.name}`))
+    .filter(Boolean)
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  return {
+    type: 'category',
+    folder: folderName,
+    name: toDisplayName(folderName),
+    dateAdded: readMetaDate(dirPath) || new Date(Date.now() - EIGHT_YEARS_MS).toISOString(),
+    children,
+  };
 }
 
 module.exports = (req, res) => {
@@ -21,47 +64,9 @@ module.exports = (req, res) => {
     }
 
     const entries = fs.readdirSync(toolsDir, { withFileTypes: true });
-
     const tools = entries
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => {
-        const folderName = entry.name;
-        const folderPath = path.join(toolsDir, folderName);
-        const indexPath = path.join(folderPath, 'index.html');
-
-        // Skip folders that don't actually contain a index
-        if (!fs.existsSync(indexPath)) return null;
-
-        let dateAdded = null;
-        let hasExplicitDate = false;
-
-        // open meta.json inside the tool folder for dates
-        const metaPath = path.join(folderPath, 'meta.json');
-        if (fs.existsSync(metaPath)) {
-          try {
-            const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
-            if (meta.dateAdded) {
-              dateAdded = new Date(meta.dateAdded).toISOString();
-              hasExplicitDate = true;
-            }
-          } catch (err) {
-            // ignore not writed or missing meta.json, fall back to file timestamp
-          }
-        }
-
-        if (!dateAdded) {
-          const stat = fs.statSync(indexPath);
-          dateAdded = stat.mtime.toISOString();
-        }
-
-        return {
-          folder: folderName,
-          name: toDisplayName(folderName),
-          path: `/tools/${folderName}/index.html`,
-          dateAdded,
-          hasExplicitDate,
-        };
-      })
+      .filter(e => e.isDirectory())
+      .map(e => scanDir(path.join(toolsDir, e.name), e.name, e.name))
       .filter(Boolean)
       .sort((a, b) => a.name.localeCompare(b.name));
 
