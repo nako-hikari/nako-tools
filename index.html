@@ -14,263 +14,307 @@
 <style>
 .hero { display: flex; flex-direction: column; gap: var(--space-sm); }
 .eyebrow {
-font-size: var(--fs-sm);
-text-transform: uppercase;
-letter-spacing: var(--ls-wide);
-color: var(--accent-light);
-font-weight: var(--fw-semibold);
+    font-size: var(--fs-sm);
+    text-transform: uppercase;
+    letter-spacing: var(--ls-wide);
+    color: var(--accent-light);
+    font-weight: var(--fw-semibold);
 }
+
 .breadcrumbs {
-display: flex;
-align-items: center;
-flex-wrap: wrap;
-gap: var(--space-xs);
-font-size: var(--fs-sm);
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+    font-size: var(--fs-sm);
 }
 .breadcrumbs .crumb {
-background: none;
-border: none;
-padding: 2px var(--space-xs);
-color: var(--text-clickable-link);
-font-size: var(--fs-sm);
-font-weight: var(--fw-regular);
+    background: none;
+    border: none;
+    padding: 2px var(--space-xs);
+    color: var(--text-clickable-link);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-regular);
 }
 .breadcrumbs .crumb:hover { color: var(--text-clickable-link-hover); }
 .breadcrumbs .crumb.current { color: var(--text-muted); cursor: default; }
 .breadcrumbs .sep { color: var(--text-disabled); }
+
 .controls { display: flex; gap: var(--space-md); flex-wrap: wrap; }
 .search-box, .sort-box {
-flex: 1 1 240px;
-display: flex;
-align-items: center;
-gap: var(--space-sm);
-background: var(--input-bg);
-border: var(--border-width) solid var(--border-color);
-border-radius: var(--radius-md);
-padding: var(--space-sm) var(--space-md);
-transition: border-color var(--transition-fast);
+    flex: 1 1 240px;
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    background: var(--input-bg);
+    border: var(--border-width) solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: var(--space-sm) var(--space-md);
+    transition: border-color var(--transition-fast);
 }
 .sort-box { flex: 0 1 220px; }
 .search-box:focus-within, .sort-box:focus-within {
-border-color: var(--accent-light);
-box-shadow: 0 0 0 3px var(--accent-focus-ring);
+    border-color: var(--accent-light);
+    box-shadow: 0 0 0 3px var(--accent-focus-ring);
 }
 .search-box img, .sort-box img { width: 16px; height: 16px; }
 .search-box input {
-flex: 1; background: transparent; border: none; padding: 0;
+    flex: 1; background: transparent; border: none; padding: 0;
 }
 .search-box input:focus { box-shadow: none; }
 .sort-box select { flex: 1; background: transparent; border: none; padding: 0; cursor: pointer; }
 .sort-box select:focus { box-shadow: none; }
 .sort-box select option { background: var(--container-bg); color: var(--text-bright); }
+
 .count-line { font-size: var(--fs-sm); color: var(--text-muted); }
+
 .grid {
-display: grid;
-grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-gap: var(--space-lg);
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: var(--space-lg);
 }
+
 .tool-card {
-display: flex;
-align-items: flex-start;
-justify-content: space-between;
-gap: var(--space-sm);
-text-decoration: none;
-color: inherit;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    text-decoration: none;
+    color: inherit;
 }
 .tool-card .tool-main { display: flex; flex-direction: column; gap: var(--space-xs); min-width: 0; }
 .tool-card .tool-name { font-size: var(--fs-md); font-weight: var(--fw-semibold); color: var(--text-bright); word-break: break-word; }
 .tool-card .tool-date { font-size: var(--fs-xs); color: var(--text-muted); }
 .tool-card .folder-flag { flex-shrink: 0; margin-top: 2px; }
+
 .empty-state, .error-state {
-text-align: center;
-padding: var(--space-3xl) var(--space-lg);
-color: var(--text-muted);
-font-size: var(--fs-md);
-border: 1px dashed var(--border-color);
-border-radius: var(--radius-lg);
-grid-column: 1 / -1;
+    text-align: center;
+    padding: var(--space-3xl) var(--space-lg);
+    color: var(--text-muted);
+    font-size: var(--fs-md);
+    border: 1px dashed var(--border-color);
+    border-radius: var(--radius-lg);
+    grid-column: 1 / -1;
 }
 .error-state { color: var(--red); border-color: var(--red); background: var(--red-pale); }
 </style>
 </head>
 <body>
+
 <div class="theme-toggle-row">
-<button class="theme-toggle interactive" onclick="toggleTheme()" aria-label="Toggle theme">
-<img id="theme-icon" src="[https://raw.githubusercontent.com/nako-hikari/assets/main/ui/moon.png](https://raw.githubusercontent.com/nako-hikari/assets/main/ui/moon.png)" alt="">
-</button>
+    <button class="theme-toggle interactive" onclick="toggleTheme()" aria-label="Toggle theme">
+        <img id="theme-icon" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/moon.png" alt="">
+    </button>
 </div>
+
 <div class="wrapper">
-<div class="hero">
-<div class="eyebrow">Internal</div>
-<h1>Tools Library</h1>
+
+    <div class="hero">
+        <div class="eyebrow">Internal</div>
+        <h1>Tools Library</h1>
+    </div>
+
+    <div class="breadcrumbs" id="breadcrumbs"></div>
+
+    <div class="controls">
+        <div class="search-box">
+            <img class="icon" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/search.png" alt="">
+            <input type="text" id="search-input" placeholder="Search this folder...">
+        </div>
+        <div class="sort-box">
+            <img class="icon" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/sort.png" alt="">
+            <select id="sort-select">
+                <option value="date-desc">Date added (newest)</option>
+                <option value="date-asc">Date added (oldest)</option>
+                <option value="name-asc">Name (A–Z)</option>
+                <option value="name-desc">Name (Z–A)</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="count-line" class="count-line"></div>
+
+    <div id="grid" class="grid"></div>
+
+    <div class="footer">
+        <div class="footer-title">Nako Hikari</div>
+        <div class="footer-links">
+            <a href="https://github.com/nako-hikari/" target="_blank" class="social">
+                <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/github.svg" alt="GitHub">
+                GitHub
+            </a>
+            <a href="https://m.youtube.com/@NaCryst" target="_blank" class="social">
+                <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/youtube.svg" alt="YouTube">
+                YouTube
+            </a>
+            <a href="https://www.tiktok.com/@nako_hikari_mc" target="_blank" class="social">
+                <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/tiktok.svg" alt="TikTok">
+                TikTok
+            </a>
+            <a href="https://ko-fi.com/arialicee" target="_blank" class="social kofi">
+                <img src="https://raw.githubusercontent.com/nako-hikari/support-files/main/assets/kofi-icon.png" alt="Ko-fi">
+                Support me on Ko-fi
+            </a>
+        </div>
+    </div>
+
 </div>
-<div class="breadcrumbs" id="breadcrumbs"></div>
-<div class="controls">
-<div class="search-box">
-<img class="icon" src="[https://raw.githubusercontent.com/nako-hikari/assets/main/ui/search.png](https://raw.githubusercontent.com/nako-hikari/assets/main/ui/search.png)" alt="">
-<input type="text" id="search-input" placeholder="Search this folder...">
-</div>
-<div class="sort-box">
-<img class="icon" src="[https://raw.githubusercontent.com/nako-hikari/assets/main/ui/sort.png](https://raw.githubusercontent.com/nako-hikari/assets/main/ui/sort.png)" alt="">
-<select id="sort-select">
-<option value="date-desc">Date added (newest)</option>
-<option value="date-asc">Date added (oldest)</option>
-<option value="name-asc">Name (A–Z)</option>
-<option value="name-desc">Name (Z–A)</option>
-</select>
-</div>
-</div>
-<div id="count-line" class="count-line"></div>
-<div id="grid" class="grid"></div>
-<div class="footer">
-<div class="footer-title">Nako Hikari</div>
-<div class="footer-links">
-<a href="[https://github.com/nako-hikari/](https://github.com/nako-hikari/)" target="_blank" class="social">
-<img src="[https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/github.svg](https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/github.svg)" alt="GitHub">
-GitHub
-</a>
-<a href="[https://m.youtube.com/@NaCryst](https://m.youtube.com/@NaCryst)" target="_blank" class="social">
-<img src="[https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/youtube.svg](https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/youtube.svg)" alt="YouTube">
-YouTube
-</a>
-<a href="[https://www.tiktok.com/@nako_hikari_mc](https://www.tiktok.com/@nako_hikari_mc)" target="_blank" class="social">
-<img src="[https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/tiktok.svg](https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/tiktok.svg)" alt="TikTok">
-TikTok
-</a>
-<a href="[https://ko-fi.com/arialicee](https://ko-fi.com/arialicee)" target="_blank" class="social kofi">
-<img src="[https://raw.githubusercontent.com/nako-hikari/support-files/main/assets/kofi-icon.png](https://raw.githubusercontent.com/nako-hikari/support-files/main/assets/kofi-icon.png)" alt="Ko-fi">
-Support me on Ko-fi
-</a>
-</div>
-</div>
-</div>
+
 <script>
 function toggleTheme() {
-const root = document.documentElement;
-const btn = document.querySelector('.theme-toggle');
-const icon = document.getElementById('theme-icon');
-const goingLight = root.getAttribute('data-theme') !== 'light';
-btn.classList.add('spinning');
-setTimeout(() => btn.classList.remove('spinning'), 400);
-if (goingLight) {
-root.setAttribute('data-theme', 'light');
-icon.src = 'https://raw.githubusercontent.com/nako-hikari/assets/main/ui/sun.png';
-localStorage.setItem('nako-theme', 'light');
-} else {
-root.removeAttribute('data-theme');
-icon.src = 'https://raw.githubusercontent.com/nako-hikari/assets/main/ui/moon.png';
-localStorage.setItem('nako-theme', 'dark');
+    const root = document.documentElement;
+    const btn = document.querySelector('.theme-toggle');
+    const icon = document.getElementById('theme-icon');
+    const goingLight = root.getAttribute('data-theme') !== 'light';
+
+    btn.classList.add('spinning');
+    setTimeout(() => btn.classList.remove('spinning'), 400);
+
+    if (goingLight) {
+        root.setAttribute('data-theme', 'light');
+        icon.src = 'https://raw.githubusercontent.com/nako-hikari/assets/main/ui/sun.png';
+        localStorage.setItem('nako-theme', 'light');
+    } else {
+        root.removeAttribute('data-theme');
+        icon.src = 'https://raw.githubusercontent.com/nako-hikari/assets/main/ui/moon.png';
+        localStorage.setItem('nako-theme', 'dark');
+    }
 }
-}
+
 (function() {
-if (localStorage.getItem('nako-theme') === 'light') {
-document.documentElement.setAttribute('data-theme', 'light');
-document.getElementById('theme-icon').src = 'https://raw.githubusercontent.com/nako-hikari/assets/main/ui/sun.png';
-}
+    if (localStorage.getItem('nako-theme') === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
+        document.getElementById('theme-icon').src = 'https://raw.githubusercontent.com/nako-hikari/assets/main/ui/sun.png';
+    }
 })();
+
 let tree = [];
 let crumbs = [];
+
 function timeAgo(iso) {
-const diffMs = Date.now() - new Date(iso).getTime();
-const day = 86400000;
-const days = Math.round(diffMs / day);
-if (days <= 0) return 'today';
-if (days === 1) return '1 day ago';
-if (days < 30) return days + ' days ago';
-const months = Math.round(days / 30);
-if (months < 12) return months + (months === 1 ? ' month ago' : ' months ago');
-const years = Math.round(days / 365);
-return years + (years === 1 ? ' year ago' : ' years ago');
+    const diffMs = Date.now() - new Date(iso).getTime();
+    const day = 86400000;
+    const days = Math.round(diffMs / day);
+    if (days <= 0) return 'today';
+    if (days === 1) return '1 day ago';
+    if (days < 30) return days + ' days ago';
+    const months = Math.round(days / 30);
+    if (months < 12) return months + (months === 1 ? ' month ago' : ' months ago');
+    const years = Math.round(days / 365);
+    return years + (years === 1 ? ' year ago' : ' years ago');
 }
+
 function currentLevel() {
-let level = tree;
-for (const c of crumbs) {
-const node = level.find(n => n.folder === c.folder);
-if (!node || !node.children) return [];
-level = node.children;
+    let level = tree;
+    for (const c of crumbs) {
+        const node = level.find(n => n.folder === c.folder);
+        if (!node || !node.children) return [];
+        level = node.children;
+    }
+    return level;
 }
-return level;
-}
+
 function renderCrumbs() {
-const el = document.getElementById('breadcrumbs');
-const parts = [{ name: 'Tools', folder: null }, ...crumbs];
-el.innerHTML = parts.map((c, i) => {
-const isLast = i === parts.length - 1;
-const sep = i > 0 ? '<span class="sep">/</span>' : '';
-return sep + <button class="crumb interactive${isLast ? ' current' : ''}" data-depth="${i}">${c.name}</button>;
-}).join(' ');
-el.querySelectorAll('.crumb').forEach(btn => {
-btn.addEventListener('click', () => {
-const depth = parseInt(btn.dataset.depth, 10);
-crumbs = crumbs.slice(0, depth);
-document.getElementById('search-input').value = '';
-render();
-});
-});
+    const el = document.getElementById('breadcrumbs');
+    const parts = [{ name: 'Tools', folder: null }, ...crumbs];
+    el.innerHTML = parts.map((c, i) => {
+        const isLast = i === parts.length - 1;
+        const sep = i > 0 ? '<span class="sep">/</span>' : '';
+        return sep + `<button class="crumb interactive${isLast ? ' current' : ''}" data-depth="${i}">${c.name}</button>`;
+    }).join(' ');
+    el.querySelectorAll('.crumb').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const depth = parseInt(btn.dataset.depth, 10);
+            crumbs = crumbs.slice(0, depth);
+            document.getElementById('search-input').value = '';
+            render();
+        });
+    });
 }
+
 function render() {
-renderCrumbs();
-const query = document.getElementById('search-input').value.trim().toLowerCase();
-const sortBy = document.getElementById('sort-select').value;
-const grid = document.getElementById('grid');
-const countLine = document.getElementById('count-line');
-const level = currentLevel();
-let filtered = level.filter(n => n.name.toLowerCase().includes(query));
-filtered.sort((a, b) => {
-if (sortBy === 'name-asc') return a.name.localeCompare(b.name);
-if (sortBy === 'name-desc') return b.name.localeCompare(a.name);
-if (sortBy === 'date-asc') return new Date(a.dateAdded) - new Date(b.dateAdded);
-return new Date(b.dateAdded) - new Date(a.dateAdded);
-});
-countLine.textContent = level.length === 0
-? ''
-: ${filtered.length} of ${level.length};
-if (level.length === 0) {
-grid.innerHTML = '<div class="empty-state">Nothing in here yet.</div>';
-return;
+    renderCrumbs();
+
+    const query = document.getElementById('search-input').value.trim().toLowerCase();
+    const sortBy = document.getElementById('sort-select').value;
+    const grid = document.getElementById('grid');
+    const countLine = document.getElementById('count-line');
+
+    const level = currentLevel();
+    let filtered = level.filter(n => n.name.toLowerCase().includes(query));
+
+    filtered.sort((a, b) => {
+        if (sortBy === 'name-asc') return a.name.localeCompare(b.name);
+        if (sortBy === 'name-desc') return b.name.localeCompare(a.name);
+        if (sortBy === 'date-asc') return new Date(a.dateAdded) - new Date(b.dateAdded);
+        return new Date(b.dateAdded) - new Date(a.dateAdded);
+    });
+
+    countLine.textContent = level.length === 0
+        ? ''
+        : `${filtered.length} of ${level.length}`;
+
+    if (level.length === 0) {
+        grid.innerHTML = '<div class="empty-state">Nothing in here yet.</div>';
+        return;
+    }
+    if (filtered.length === 0) {
+        grid.innerHTML = `<div class="empty-state">No matches for "${query}".</div>`;
+        return;
+    }
+
+    grid.innerHTML = filtered.map((n, i) => {
+        const folderIcon = n.type === 'category'
+            ? '<img class="icon folder-flag" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/folder.png" alt="Folder">'
+            : '';
+        return `
+            <a class="card tool-card interactive" href="${n.type === 'tool' ? n.path : '#'}" data-index="${i}" data-type="${n.type}">
+                <div class="tool-main">
+                    <div class="tool-name">${n.name}</div>
+                    <div class="tool-date">Added ${timeAgo(n.dateAdded)}</div>
+                </div>
+                ${folderIcon}
+            </a>
+        `;
+    }).join('');
+
+    grid.querySelectorAll('.tool-card').forEach(card => {
+        if (card.dataset.type === 'category') {
+            card.addEventListener('click', (e) => {
+                e.preventDefault();
+                const node = filtered[parseInt(card.dataset.index, 10)];
+                crumbs.push({ name: node.name, folder: node.folder });
+                document.getElementById('search-input').value = '';
+                render();
+            });
+        }
+    });
 }
-if (filtered.length === 0) {
-grid.innerHTML = <div class="empty-state">No matches for "${query}".</div>;
-return;
-}
-grid.innerHTML = filtered.map((n, i) => {
-const folderIcon = n.type === 'category'
-? '<img class="icon folder-flag" src="[https://raw.githubusercontent.com/nako-hikari/assets/main/ui/folder.png](https://raw.githubusercontent.com/nako-hikari/assets/main/ui/folder.png)" alt="Folder" width="20" height="20" style="width:20px;height:20px;">'
-: '';
-return <a class="card tool-card interactive" href="${n.type === 'tool' ? n.path : '#'}" data-index="${i}" data-type="${n.type}"> <div class="tool-main"> <div class="tool-name">${n.name}</div> <div class="tool-date">Added ${timeAgo(n.dateAdded)}</div> </div> ${folderIcon} </a>;
-}).join('');
-grid.querySelectorAll('.tool-card').forEach(card => {
-if (card.dataset.type === 'category') {
-card.addEventListener('click', (e) => {
-e.preventDefault();
-const node = filtered[parseInt(card.dataset.index, 10)];
-crumbs.push({ name: node.name, folder: node.folder });
-document.getElementById('search-input').value = '';
-render();
-});
-}
-});
-}
+
 async function loadTools() {
-const grid = document.getElementById('grid');
-try {
-const res = await fetch('/api/tools');
-if (!res.ok) throw new Error('Request failed: ' + res.status);
-const data = await res.json();
-tree = data.tools || [];
-render();
-} catch (err) {
-grid.innerHTML = <div class="error-state">Couldn't load the tools list (${err.message}). Make sure this page is running on Vercel, not opened as a local file.</div>;
+    const grid = document.getElementById('grid');
+    try {
+        const res = await fetch('/api/tools');
+        if (!res.ok) throw new Error('Request failed: ' + res.status);
+        const data = await res.json();
+        tree = data.tools || [];
+        render();
+    } catch (err) {
+        grid.innerHTML = `<div class="error-state">Couldn't load the tools list (${err.message}). Make sure this page is running on Vercel, not opened as a local file.</div>`;
+    }
 }
-}
+
 document.getElementById('search-input').addEventListener('input', render);
 document.getElementById('sort-select').addEventListener('change', render);
+
 loadTools();
+
 if ('serviceWorker' in navigator) {
-window.addEventListener('load', () => {
-navigator.serviceWorker.register('/service-worker.js').catch(() => {});
-});
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js').catch(() => {});
+    });
 }
 </script>
+
 </body>
 </html>
