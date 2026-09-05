@@ -20,7 +20,7 @@ function readMetaDate(folderPath) {
     const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
     if (meta.dateAdded) return new Date(meta.dateAdded).toISOString();
   } catch (err) {
-
+    // ignore no meta.json
   }
   return null;
 }
@@ -29,11 +29,13 @@ function scanDir(dirPath, folderName, relPath) {
   const indexPath = path.join(dirPath, 'index.html');
 
   if (fs.existsSync(indexPath)) {
+    const iconPath = path.join(dirPath, 'icon.png');
     return {
       type: 'tool',
       folder: folderName,
       name: toDisplayName(folderName),
       path: `/tools/${relPath}/index.html`,
+      icon: fs.existsSync(iconPath) ? `/tools/${relPath}/icon.png` : null,
       dateAdded: readMetaDate(dirPath) || new Date(Date.now() - EIGHT_YEARS_MS).toISOString(),
     };
   }
