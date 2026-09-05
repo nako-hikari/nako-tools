@@ -85,7 +85,7 @@
 .tool-card .tool-main { display: flex; flex-direction: column; gap: var(--space-xs); min-width: 0; }
 .tool-card .tool-name { font-size: var(--fs-md); font-weight: var(--fw-semibold); color: var(--text-bright); word-break: break-word; }
 .tool-card .tool-date { font-size: var(--fs-xs); color: var(--text-muted); }
-.tool-card .folder-flag { flex-shrink: 0; margin-top: 2px; width: 60px; height: 60px; }
+.tool-card .folder-flag { flex-shrink: 0; margin-top: 2px; width: 50px; height: 50px; }
 
 .empty-state, .error-state {
     text-align: center;
@@ -264,16 +264,19 @@ function render() {
     }
 
     grid.innerHTML = filtered.map((n, i) => {
-        const folderIcon = n.type === 'category'
-            ? '<img class="icon folder-flag" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/folder.png" alt="Folder">'
-            : '';
+        let rightIcon = '';
+        if (n.type === 'category') {
+            rightIcon = '<img class="icon folder-flag" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/folder.png" alt="Folder">';
+        } else if (n.icon) {
+            rightIcon = `<img class="icon icon-on-brand folder-flag" src="${n.icon}" alt="">`;
+        }
         return `
             <a class="card tool-card interactive" href="${n.type === 'tool' ? n.path : '#'}" data-index="${i}" data-type="${n.type}">
                 <div class="tool-main">
                     <div class="tool-name">${n.name}</div>
                     <div class="tool-date">Added ${timeAgo(n.dateAdded)}</div>
                 </div>
-                ${folderIcon}
+                ${rightIcon}
             </a>
         `;
     }).join('');
