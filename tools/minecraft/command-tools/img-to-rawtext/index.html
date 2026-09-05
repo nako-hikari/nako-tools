@@ -1,1 +1,668 @@
-a
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Actionbar Pixel Editor</title>
+<link rel="stylesheet" href="/css/nako.css">
+<style>
+body {
+    align-items: center;
+    justify-content: flex-start;
+}
+.toolbar {
+    display: flex;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+    align-items: center;
+}
+.tool-btn.selected {
+    background: var(--accent-dark);
+    border-color: var(--accent-dark);
+    color: var(--text-on-brand);
+}
+.palette-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
+    gap: var(--space-xs);
+    background: var(--input-bg);
+    padding: var(--space-sm);
+    border-radius: var(--radius-sm);
+    border: var(--border-width) solid var(--border-color);
+}
+.swatch {
+    height: 34px;
+    border-radius: var(--radius-sm);
+    border: var(--border-width) solid var(--border-color);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-bold);
+    color: #fff;
+    text-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
+    user-select: none;
+}
+.swatch.selected {
+    border-color: var(--accent-light);
+    box-shadow: var(--shadow-soft);
+}
+.preview-box {
+    background: var(--box-bg);
+    border: var(--border-width) solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: var(--space-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    overflow: hidden;
+    position: relative;
+    touch-action: none;
+}
+#previewCanvas {
+    image-rendering: pixelated;
+    border: var(--border-width) dashed var(--border-color);
+    transform-origin: center center;
+    cursor: crosshair;
+}
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+}
+#output {
+    width: 100%;
+    height: 100px;
+    font-family: var(--font-mono);
+    font-size: var(--fs-xs);
+    resize: vertical;
+    word-break: break-all;
+}
+</style>
+</head>
+<body>
+
+<div class="theme-toggle-row">
+    <button class="theme-toggle interactive" onclick="toggleTheme()" aria-label="Toggle theme">
+        <img id="theme-icon" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/moon.png" alt="">
+    </button>
+</div>
+
+<div class="wrapper">
+    <h1>Actionbar Pixel Editor</h1>
+    <p>Convert an image into a Minecraft titleraw actionbar, or paint one pixel by pixel.</p>
+
+    <div class="card">
+        <div class="card-title">Import</div>
+        <div class="field">
+            <div class="field-label">Select image</div>
+            <input type="file" id="imageInput" accept="image/*">
+        </div>
+        <div class="field" style="margin-top: var(--space-md);">
+            <div class="field-label">Paste existing command</div>
+            <textarea id="pasteInput" placeholder="Paste existing titleraw command here to edit..."></textarea>
+        </div>
+        <div class="toolbar" style="margin-top: var(--space-sm);">
+            <button class="secondary interactive" id="parseBtn">Load into canvas</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">Canvas setup</div>
+        <div class="toolbar">
+            <div class="field">
+                <div class="field-label">Width (chars)</div>
+                <input type="number" id="widthInput" value="30" min="1" max="100">
+            </div>
+            <div class="field">
+                <div class="field-label">Height (lines)</div>
+                <input type="number" id="heightInput" value="30" min="1" max="50">
+            </div>
+        </div>
+        <div class="toolbar" style="margin-top: var(--space-sm);">
+            <button class="secondary interactive" id="blankCanvasBtn">Generate blank canvas</button>
+        </div>
+        <div class="toolbar" style="margin-top: var(--space-md);">
+            <select id="modeSelect">
+                <option value="monochrome">Monochrome / 2-color</option>
+                <option value="fullcolor">Full color matching</option>
+            </select>
+            <label><input type="checkbox" id="invertCheck"> Invert image</label>
+        </div>
+        <div class="toolbar" id="monoColorSettings" style="margin-top: var(--space-sm);">
+            <div class="field">
+                <div class="field-label">Foreground code</div>
+                <select id="monoFgSelect"></select>
+            </div>
+            <div class="field">
+                <div class="field-label">Background code</div>
+                <select id="monoBgSelect"></select>
+            </div>
+        </div>
+        <button class="primary interactive" id="convertBtn" style="margin-top: var(--space-md); width: 100%;">Convert image to editor</button>
+    </div>
+
+    <div class="card">
+        <div class="card-title">Palette</div>
+        <div class="palette-grid" id="paletteContainer"></div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">Editor tools</div>
+        <div class="toolbar">
+            <button class="secondary interactive tool-btn selected" id="brushToolBtn">Brush</button>
+            <button class="secondary interactive tool-btn" id="bucketToolBtn">Bucket</button>
+            <button class="secondary interactive tool-btn" id="zoomToolBtn">
+                <img class="icon icon-sm" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/hand.png" alt="">
+                Pan / zoom
+            </button>
+        </div>
+        <div class="toolbar" style="margin-top: var(--space-sm);">
+            <button class="secondary interactive" id="undoBtn">
+                <img class="icon icon-sm" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/undo.png" alt="">
+                Undo
+            </button>
+            <button class="secondary interactive" id="redoBtn">
+                <img class="icon icon-sm" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/redo.png" alt="">
+                Redo
+            </button>
+        </div>
+        <div class="toolbar" id="zoomControls" style="display: none; margin-top: var(--space-sm);">
+            <button class="secondary interactive" id="zoomInBtn">
+                <img class="icon icon-sm" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/zoom_in.png" alt="">
+                Zoom in
+            </button>
+            <button class="secondary interactive" id="zoomOutBtn">
+                <img class="icon icon-sm" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/zoom_out.png" alt="">
+                Zoom out
+            </button>
+            <button class="secondary interactive" id="resetZoomBtn">
+                <img class="icon icon-sm" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/refresh.png" alt="">
+                Reset view
+            </button>
+        </div>
+        <div class="toolbar" id="brushSizeContainer" style="margin-top: var(--space-sm);">
+            <span class="field-label">Brush size</span>
+            <input type="range" id="brushSizeInput" min="1" max="5" value="1" style="flex-grow: 1;">
+            <span id="brushSizeVal">1px</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">Pixel visualizer</div>
+        <div class="preview-box" id="previewBox">
+            <canvas id="previewCanvas"></canvas>
+        </div>
+        <button class="primary interactive" id="generateBtn" style="margin-top: var(--space-md); width: 100%;">Generate command from canvas</button>
+    </div>
+
+    <div class="card">
+        <div class="card-title">Generated command</div>
+        <div class="output-container">
+            <textarea id="output" class="output-box" readonly placeholder="Command will appear here..."></textarea>
+            <button class="primary interactive" id="copyBtn" style="margin-top: var(--space-sm);">
+                <img class="icon icon-sm" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/copy.png" alt="">
+                Copy command
+            </button>
+        </div>
+    </div>
+
+    <div class="footer">
+        <div class="footer-title">Nako Hikari</div>
+        <div class="footer-links">
+            <a href="https://github.com/nako-hikari/" target="_blank" class="social">
+                <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/github.svg" alt="GitHub">
+                GitHub
+            </a>
+            <a href="https://m.youtube.com/@NaCryst" target="_blank" class="social">
+                <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/youtube.svg" alt="YouTube">
+                YouTube
+            </a>
+            <a href="https://www.tiktok.com/@nako_hikari_mc" target="_blank" class="social">
+                <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/tiktok.svg" alt="TikTok">
+                TikTok
+            </a>
+            <a href="https://ko-fi.com/arialicee" target="_blank" class="social kofi">
+                <img src="https://raw.githubusercontent.com/nako-hikari/support-files/main/assets/kofi-icon.png" alt="Ko-fi">
+                Support me on Ko-fi
+            </a>
+        </div>
+    </div>
+</div>
+
+<canvas id="canvas" style="display: none;"></canvas>
+
+<script>
+function toggleTheme() {
+    const root = document.documentElement;
+    const btn = document.querySelector('.theme-toggle');
+    const icon = document.getElementById('theme-icon');
+    const goingLight = root.getAttribute('data-theme') !== 'light';
+
+    btn.classList.add('spinning');
+    setTimeout(() => btn.classList.remove('spinning'), 400);
+
+    if (goingLight) {
+        root.setAttribute('data-theme', 'light');
+        icon.src = 'https://raw.githubusercontent.com/nako-hikari/assets/main/ui/sun.png';
+        localStorage.setItem('nako-theme', 'light');
+    } else {
+        root.removeAttribute('data-theme');
+        icon.src = 'https://raw.githubusercontent.com/nako-hikari/assets/main/ui/moon.png';
+        localStorage.setItem('nako-theme', 'dark');
+    }
+}
+
+(function() {
+    if (localStorage.getItem('nako-theme') === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
+        document.getElementById('theme-icon').src = 'https://raw.githubusercontent.com/nako-hikari/assets/main/ui/sun.png';
+    }
+})();
+
+const colorPalette = [
+    { code: "§0", hex: "#000000" }, { code: "§1", hex: "#0000AA" }, { code: "§2", hex: "#00AA00" },
+    { code: "§3", hex: "#00AAAA" }, { code: "§4", hex: "#AA0000" }, { code: "§5", hex: "#AA00AA" },
+    { code: "§6", hex: "#FFAA00" }, { code: "§7", hex: "#C6C6C6" }, { code: "§8", hex: "#555555" },
+    { code: "§9", hex: "#447FFF" }, { code: "§a", hex: "#55FF55" }, { code: "§b", hex: "#55FFFF" },
+    { code: "§c", hex: "#FF5555" }, { code: "§d", hex: "#FF55FF" }, { code: "§e", hex: "#FFFF55" },
+    { code: "§f", hex: "#FFFFFF" }, { code: "§g", hex: "#DDD605" }, { code: "§h", hex: "#D9CCB8" },
+    { code: "§i", hex: "#A0B4B7" }, { code: "§j", hex: "#443A3B" }, { code: "§m", hex: "#EE222C" },
+    { code: "§n", hex: "#C87363" }, { code: "§p", hex: "#FFBF1E" }, { code: "§q", hex: "#13A045" },
+    { code: "§s", hex: "#5FECFF" }, { code: "§t", hex: "#577BFF" }, { code: "§u", hex: "#B66CDD" },
+    { code: "§v", hex: "#EB7114" }
+];
+
+let activeColorCode = "§f";
+let activeTool = "brush";
+let gridData = [];
+const pixelScale = 12;
+const previewCanvas = document.getElementById("previewCanvas");
+const pCtx = previewCanvas.getContext("2d");
+
+let historyStack = [];
+let redoStack = [];
+const maxHistory = 20;
+
+let scale = 1, panX = 0, panY = 0;
+let isDrawing = false, isPanning = false;
+let startPanX = 0, startPanY = 0;
+
+function hexToRgb(hex) {
+    const n = parseInt(hex.replace("#", ""), 16);
+    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+
+function getClosestColor(r, g, b) {
+    let minDist = Infinity;
+    let closest = colorPalette[15];
+    for (const col of colorPalette) {
+        const rgb = hexToRgb(col.hex);
+        const dist = (r - rgb.r) ** 2 + (g - rgb.g) ** 2 + (b - rgb.b) ** 2;
+        if (dist < minDist) { minDist = dist; closest = col; }
+    }
+    return closest;
+}
+
+function getColorByCode(code) {
+    return colorPalette.find(c => c.code === code) || { code: "§f", hex: "#FFFFFF" };
+}
+
+function saveState() {
+    if (gridData.length === 0) return;
+    historyStack.push(gridData.map(row => [...row]));
+    if (historyStack.length > maxHistory) historyStack.shift();
+    redoStack = [];
+}
+
+const paletteContainer = document.getElementById("paletteContainer");
+const monoFgSelect = document.getElementById("monoFgSelect");
+const monoBgSelect = document.getElementById("monoBgSelect");
+
+colorPalette.forEach((col) => {
+    const swatch = document.createElement("div");
+    swatch.className = "swatch interactive" + (col.code === activeColorCode ? " selected" : "");
+    swatch.style.backgroundColor = col.hex;
+    swatch.innerText = col.code;
+    swatch.addEventListener("click", () => {
+        document.querySelectorAll(".swatch").forEach(s => s.classList.remove("selected"));
+        swatch.classList.add("selected");
+        activeColorCode = col.code;
+    });
+    paletteContainer.appendChild(swatch);
+
+    const optFg = new Option(`${col.code} (${col.hex})`, col.code);
+    const optBg = new Option(`${col.code} (${col.hex})`, col.code);
+    if (col.code === "§f") optFg.selected = true;
+    if (col.code === "§0") optBg.selected = true;
+    monoFgSelect.add(optFg);
+    monoBgSelect.add(optBg);
+});
+
+function applyTransform() {
+    previewCanvas.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+}
+
+function renderGrid() {
+    const height = gridData.length;
+    if (height === 0) return;
+    const width = gridData[0].length;
+
+    previewCanvas.width = width * pixelScale;
+    previewCanvas.height = height * pixelScale;
+
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            pCtx.fillStyle = getColorByCode(gridData[y][x]).hex;
+            pCtx.fillRect(x * pixelScale, y * pixelScale, pixelScale, pixelScale);
+        }
+    }
+}
+
+document.getElementById("blankCanvasBtn").addEventListener("click", () => {
+    const width = parseInt(document.getElementById("widthInput").value);
+    const height = parseInt(document.getElementById("heightInput").value);
+
+    saveState();
+    gridData = [];
+    for (let y = 0; y < height; y++) {
+        const row = [];
+        for (let x = 0; x < width; x++) row.push(activeColorCode);
+        gridData.push(row);
+    }
+
+    scale = 1; panX = 0; panY = 0;
+    applyTransform();
+    renderGrid();
+    buildActionbarCommand();
+});
+
+document.getElementById("convertBtn").addEventListener("click", () => {
+    const fileInput = document.getElementById("imageInput");
+    if (!fileInput.files[0]) return alert("Please select an image first.");
+
+    const width = parseInt(document.getElementById("widthInput").value);
+    const height = parseInt(document.getElementById("heightInput").value);
+    const mode = document.getElementById("modeSelect").value;
+    const invert = document.getElementById("invertCheck").checked;
+    const fgCode = monoFgSelect.value;
+    const bgCode = monoBgSelect.value;
+
+    const img = new Image();
+    img.onload = () => {
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = width;
+        canvas.height = height;
+
+        ctx.drawImage(img, 0, 0, width, height);
+        const imgData = ctx.getImageData(0, 0, width, height).data;
+
+        saveState();
+        gridData = [];
+
+        for (let y = 0; y < height; y++) {
+            const row = [];
+            for (let x = 0; x < width; x++) {
+                const idx = (y * width + x) * 4;
+                let r = imgData[idx], g = imgData[idx + 1], b = imgData[idx + 2];
+
+                if (invert) { r = 255 - r; g = 255 - g; b = 255 - b; }
+
+                let code;
+                if (mode === "monochrome") {
+                    code = (r + g + b) / 3 > 128 ? fgCode : bgCode;
+                } else {
+                    code = getClosestColor(r, g, b).code;
+                }
+                row.push(code);
+            }
+            gridData.push(row);
+        }
+
+        scale = 1; panX = 0; panY = 0;
+        applyTransform();
+        renderGrid();
+        buildActionbarCommand();
+    };
+
+    img.src = URL.createObjectURL(fileInput.files[0]);
+});
+
+function setTool(tool) {
+    activeTool = tool;
+    document.querySelectorAll(".tool-btn").forEach(b => b.classList.remove("selected"));
+
+    const zoomControls = document.getElementById("zoomControls");
+    const brushSizeContainer = document.getElementById("brushSizeContainer");
+
+    if (tool === "brush") {
+        document.getElementById("brushToolBtn").classList.add("selected");
+        zoomControls.style.display = "none";
+        brushSizeContainer.style.display = "flex";
+    } else if (tool === "bucket") {
+        document.getElementById("bucketToolBtn").classList.add("selected");
+        zoomControls.style.display = "none";
+        brushSizeContainer.style.display = "none";
+    } else if (tool === "zoom") {
+        document.getElementById("zoomToolBtn").classList.add("selected");
+        zoomControls.style.display = "flex";
+        brushSizeContainer.style.display = "none";
+    }
+
+    previewCanvas.style.cursor = tool === "zoom" ? "grab" : "crosshair";
+}
+
+document.getElementById("brushToolBtn").addEventListener("click", () => setTool("brush"));
+document.getElementById("bucketToolBtn").addEventListener("click", () => setTool("bucket"));
+document.getElementById("zoomToolBtn").addEventListener("click", () => setTool("zoom"));
+
+document.getElementById("zoomInBtn").addEventListener("click", () => {
+    scale = Math.min(scale + 0.3, 8);
+    applyTransform();
+});
+
+document.getElementById("zoomOutBtn").addEventListener("click", () => {
+    scale = Math.max(scale - 0.3, 0.3);
+    applyTransform();
+});
+
+document.getElementById("resetZoomBtn").addEventListener("click", () => {
+    scale = 1; panX = 0; panY = 0;
+    applyTransform();
+});
+
+document.getElementById("undoBtn").addEventListener("click", () => {
+    if (historyStack.length === 0) return;
+    redoStack.push(gridData.map(row => [...row]));
+    gridData = historyStack.pop();
+    renderGrid();
+    buildActionbarCommand();
+});
+
+document.getElementById("redoBtn").addEventListener("click", () => {
+    if (redoStack.length === 0) return;
+    historyStack.push(gridData.map(row => [...row]));
+    gridData = redoStack.pop();
+    renderGrid();
+    buildActionbarCommand();
+});
+
+document.getElementById("brushSizeInput").addEventListener("input", (e) => {
+    document.getElementById("brushSizeVal").innerText = `${e.target.value}px`;
+});
+
+function floodFill(startX, startY, targetColor, replacementColor) {
+    if (targetColor === replacementColor) return;
+    const height = gridData.length;
+    const width = gridData[0].length;
+
+    const queue = [[startX, startY]];
+    while (queue.length > 0) {
+        const [x, y] = queue.pop();
+        if (x >= 0 && x < width && y >= 0 && y < height && gridData[y][x] === targetColor) {
+            gridData[y][x] = replacementColor;
+            queue.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+        }
+    }
+}
+
+function getPointerPos(e) {
+    const rect = previewCanvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+    const scaleX = previewCanvas.width / rect.width;
+    const scaleY = previewCanvas.height / rect.height;
+
+    const x = Math.floor(((clientX - rect.left) * scaleX) / pixelScale);
+    const y = Math.floor(((clientY - rect.top) * scaleY) / pixelScale);
+    return { x, y, clientX, clientY };
+}
+
+function handleStart(e) {
+    const pos = getPointerPos(e);
+    if (activeTool === "zoom") {
+        isPanning = true;
+        startPanX = pos.clientX - panX;
+        startPanY = pos.clientY - panY;
+        previewCanvas.style.cursor = "grabbing";
+    } else {
+        saveState();
+        isDrawing = true;
+        handleDraw(e);
+    }
+}
+
+function handleMove(e) {
+    const pos = getPointerPos(e);
+    if (isPanning && activeTool === "zoom") {
+        panX = pos.clientX - startPanX;
+        panY = pos.clientY - startPanY;
+        applyTransform();
+    } else if (isDrawing && activeTool !== "zoom") {
+        handleDraw(e);
+    }
+}
+
+function handleEnd() {
+    isDrawing = false;
+    isPanning = false;
+    if (activeTool === "zoom") previewCanvas.style.cursor = "grab";
+}
+
+function handleDraw(e) {
+    if (gridData.length === 0) return;
+    const pos = getPointerPos(e);
+    const height = gridData.length;
+    const width = gridData[0].length;
+
+    if (pos.x < 0 || pos.x >= width || pos.y < 0 || pos.y >= height) return;
+
+    if (activeTool === "bucket") {
+        floodFill(pos.x, pos.y, gridData[pos.y][pos.x], activeColorCode);
+        renderGrid();
+    } else if (activeTool === "brush") {
+        const radius = Math.floor(parseInt(document.getElementById("brushSizeInput").value) / 2);
+        for (let dy = -radius; dy <= radius; dy++) {
+            for (let dx = -radius; dx <= radius; dx++) {
+                const px = pos.x + dx, py = pos.y + dy;
+                if (px >= 0 && px < width && py >= 0 && py < height) gridData[py][px] = activeColorCode;
+            }
+        }
+        renderGrid();
+    }
+}
+
+previewCanvas.addEventListener("mousedown", handleStart);
+previewCanvas.addEventListener("mousemove", handleMove);
+window.addEventListener("mouseup", handleEnd);
+
+previewCanvas.addEventListener("touchstart", handleStart);
+previewCanvas.addEventListener("touchmove", handleMove);
+window.addEventListener("touchend", handleEnd);
+
+function buildActionbarCommand() {
+    if (gridData.length === 0) return;
+    const height = gridData.length;
+    const width = gridData[0].length;
+
+    let resultText = "";
+    let currentColor = "";
+
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const code = gridData[y][x];
+            if (code !== currentColor) {
+                resultText += code;
+                currentColor = code;
+            }
+            resultText += "█";
+        }
+        if (y < height - 1) resultText += "\n";
+    }
+
+    resultText += "\n".repeat(5 + Math.floor(height / 2));
+
+    const command = `titleraw @a actionbar ${JSON.stringify({ rawtext: [{ text: resultText }] })}`;
+    document.getElementById("output").value = command;
+}
+
+document.getElementById("generateBtn").addEventListener("click", buildActionbarCommand);
+
+document.getElementById("parseBtn").addEventListener("click", () => {
+    const rawInput = document.getElementById("pasteInput").value;
+    if (!rawInput) return alert("Please paste a command first.");
+
+    try {
+        const jsonMatch = rawInput.match(/\{.*\}/s);
+        if (!jsonMatch) return alert("Invalid JSON structure in command.");
+
+        const parsed = JSON.parse(jsonMatch[0]);
+        const lines = parsed.rawtext[0].text.trimEnd().split("\n");
+
+        saveState();
+        gridData = [];
+        let color = "§f";
+
+        for (const line of lines) {
+            const row = [];
+            for (let i = 0; i < line.length; i++) {
+                if (line[i] === "§" && i + 1 < line.length) {
+                    color = line.substring(i, i + 2);
+                    i++;
+                } else if (line[i] === "█") {
+                    row.push(color);
+                }
+            }
+            if (row.length > 0) gridData.push(row);
+        }
+
+        if (gridData.length > 0) {
+            document.getElementById("widthInput").value = gridData[0].length;
+            document.getElementById("heightInput").value = gridData.length;
+            scale = 1; panX = 0; panY = 0;
+            applyTransform();
+            renderGrid();
+            buildActionbarCommand();
+        }
+    } catch (err) {
+        alert("Failed to parse command string. Ensure it is a valid titleraw JSON format.");
+    }
+});
+
+document.getElementById("copyBtn").addEventListener("click", () => {
+    const output = document.getElementById("output");
+    if (!output.value) return alert("Nothing to copy yet!");
+
+    navigator.clipboard.writeText(output.value).then(() => {
+        const copyBtn = document.getElementById("copyBtn");
+        copyBtn.classList.add("copy-success");
+        setTimeout(() => copyBtn.classList.remove("copy-success"), 2000);
+    });
+});
+</script>
+</body>
+</html>
