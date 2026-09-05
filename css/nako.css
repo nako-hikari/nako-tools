@@ -191,7 +191,20 @@ img {
     color: var(--text-on-brand);
 }
 
-.icon { filter: var(--icon-filter); }
+/* Any image pulled from the shared icon repo is capped to a small UI
+   size even if class="icon" was forgotten on it — this is the actual
+   backstop, not just a convention to follow. */
+img[src*="nako-hikari/assets"] {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+    filter: var(--icon-filter);
+}
+
+.icon { width: 18px; height: 18px; object-fit: contain; filter: var(--icon-filter); }
+.icon-sm { width: 14px; height: 14px; }
+.icon-lg { width: 24px; height: 24px; }
+.icon-xl { width: 40px; height: 40px; }
 .icon-on-brand,
 button.primary img,
 .badge-brand img { filter: none !important; }
