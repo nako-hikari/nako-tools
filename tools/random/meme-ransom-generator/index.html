@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cutout Caption</title>
+<link rel="stylesheet" href="/css/nako.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+.theme-toggle-row{ display:flex; justify-content:flex-end; margin-bottom:var(--space-md); }
+.preview{ background:var(--input-bg); border:var(--border-width) solid var(--border-color); border-radius:var(--radius-lg); padding:var(--space-md); display:flex; align-items:center; justify-content:center; margin-top:var(--space-lg); }
+.preview canvas{ max-width:100%; height:auto; display:block; border-radius:var(--radius-md); cursor:grab; touch-action:none; }
+.preview canvas:active{ cursor:grabbing; }
+.preview-bar{ display:flex; align-items:center; justify-content:space-between; gap:var(--space-sm); flex-wrap:wrap; margin-top:var(--space-sm); }
+.preview-actions{ display:flex; gap:var(--space-xs); }
+.dims{ font-family:var(--font-mono); font-size:var(--fs-xs); color:var(--text-muted); }
+.tabs{ margin-top:var(--space-xl); }
+.tab-panel{ display:none; margin-top:var(--space-lg); }
+.tab-panel.active{ display:block; }
+.settings-group{ margin-bottom:var(--space-lg); }
+.settings-group:last-child{ margin-bottom:0; }
+.group-label{ font-size:var(--fs-sm); text-transform:uppercase; letter-spacing:var(--ls-wide); color:var(--accent-light); font-weight:var(--fw-semibold); margin-bottom:var(--space-sm); }
+.field-row{ margin-bottom:var(--space-md); }
+.field-row:last-child{ margin-bottom:0; }
+.slider-label{ display:flex; justify-content:space-between; font-size:var(--fs-sm); color:var(--text-main); margin-bottom:var(--space-xs); }
+.slider-label span:last-child{ color:var(--accent-light); font-family:var(--font-mono); }
+.toggle-row{ display:flex; align-items:center; justify-content:space-between; gap:var(--space-md); padding:var(--space-sm) 0; }
+.toggle-row .field-label{ margin:0; }
+.layer-row{ display:flex; gap:var(--space-xs); overflow-x:auto; padding-bottom:var(--space-xs); }
+.layer-chip{ flex-shrink:0; border:var(--border-width) solid var(--border-color); background:var(--input-bg); color:var(--text-muted); border-radius:var(--radius-full); padding:6px var(--space-md); font-size:var(--fs-sm); cursor:pointer; }
+.layer-chip.active{ background:var(--accent-dark); border-color:var(--accent-dark); color:var(--text-on-brand); }
+.layer-chip:active{ opacity:0.8; }
+.layer-actions{ display:flex; justify-content:flex-end; gap:var(--space-xs); margin-top:var(--space-xs); }
+.two-col{ display:grid; grid-template-columns:1fr 1fr; gap:var(--space-md); }
+.custom-colors{ margin-top:var(--space-md); }
+.custom-colors.hidden{ display:none; }
+.export-btn{ width:100%; margin-top:var(--space-xl); display:flex; align-items:center; justify-content:center; gap:var(--space-sm); }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+<div class="theme-toggle-row">
+<button class="theme-toggle interactive" onclick="toggleTheme()" aria-label="Toggle theme">
+<img id="theme-icon" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/moon.png" alt="">
+</button>
+</div>
+
+<div class="card">
+<div class="panel-header">
+<div class="panel-header-icon"><img class="icon" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/voxel.png" alt=""></div>
+<div class="panel-header-text">
+<h1 class="panel-header-title">Cutout Caption</h1>
+<p class="panel-header-subtitle">Ransom-note style photo captions</p>
+</div>
+</div>
+
+<div class="preview">
+<canvas id="canvas"></canvas>
+</div>
+<div class="preview-bar">
+<div class="preview-actions">
+<button type="button" class="icon-button interactive" id="uploadBtn" aria-label="Upload photo">
+<img class="icon" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/upload.png" alt="">
+</button>
+<input type="file" id="fileInput" accept="image/*" hidden>
+<button type="button" class="icon-button interactive" id="resetBtn" aria-label="Reset image">
+<img class="icon" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/undo.png" alt="">
+</button>
+<button type="button" class="icon-button interactive" id="rerollBtn" aria-label="Shuffle cutouts">
+<img class="icon" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/refresh.png" alt="">
+</button>
+<button type="button" class="icon-button interactive" id="sampleBtn" aria-label="Load sample caption">
+<img class="icon" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/wand.png" alt="">
+</button>
+</div>
+<div class="dims" id="dims">800 × 800 px</div>
+</div>
+
+<div class="tabs">
+<button class="tab active" data-tab="text">Text</button>
+<button class="tab" data-tab="style">Style</button>
+<button class="tab" data-tab="layout">Layout</button>
+</div>
+
+<div class="tab-panel active" data-panel="text">
+
+<div class="settings-group">
+<div class="group-label">Captions</div>
+<div class="layer-row" id="layerRow"></div>
+<div class="layer-actions">
+<button type="button" class="icon-button interactive" id="addBtn" aria-label="Add caption">
+<img class="icon" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/plus.png" alt="">
+</button>
+<button type="button" class="icon-button interactive" id="dupBtn" aria-label="Duplicate caption">
+<img class="icon" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/duplicate.png" alt="">
+</button>
+<button type="button" class="icon-button danger interactive" id="delBtn" aria-label="Delete caption">
+<img class="icon" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/trash.png" alt="">
+</button>
+</div>
+<div class="field-row">
+<textarea id="captionInput" rows="4" placeholder="Type your caption..."></textarea>
+</div>
+</div>
+
+<div class="settings-group">
+<div class="toggle-row">
+<span class="field-label">Scramble case</span>
+<label class="toggle-switch">
+<input type="checkbox" id="scrambleToggle" checked>
+<span class="slider"></span>
+</label>
+</div>
+<div class="toggle-row">
+<span class="field-label">Mix fonts</span>
+<label class="toggle-switch">
+<input type="checkbox" id="mixToggle" checked>
+<span class="slider"></span>
+</label>
+</div>
+</div>
+
+</div>
+
+<div class="tab-panel" data-panel="style">
+
+<div class="settings-group">
+<div class="field-row">
+<span class="field-label">Background source</span>
+<select id="sourceSelect">
+<option value="meme" selected>Cropped photo snippets</option>
+<option value="mixed">Mixed snippets and solid</option>
+<option value="solid">Solid colors only</option>
+</select>
+</div>
+<div class="field-row">
+<div class="slider-label"><span>Snippet size</span><span id="cropVal">60px</span></div>
+<input type="range" id="cropInput" min="20" max="180" value="60">
+</div>
+<div class="field-row">
+<div class="slider-label"><span>Color variation</span><span id="contrastVal">15%</span></div>
+<input type="range" id="contrastInput" min="0" max="50" value="15">
+</div>
+</div>
+
+<div class="settings-group">
+<div class="field-row">
+<span class="field-label">Palette</span>
+<select id="paletteSelect">
+<option value="mostlyWhite" selected>Off-white</option>
+<option value="vibrantMeme">Vibrant</option>
+<option value="darkNeon">Dark</option>
+<option value="monochrome">Monochrome</option>
+<option value="custom">Custom</option>
+</select>
+</div>
+<div class="custom-colors hidden two-col" id="customColors">
+<div>
+<span class="field-label">Background</span>
+<input type="color" id="customBg" value="#ffffff">
+</div>
+<div>
+<span class="field-label">Text</span>
+<input type="color" id="customText" value="#000000">
+</div>
+</div>
+</div>
+
+<div class="settings-group">
+<div class="two-col">
+<div>
+<div class="slider-label"><span>Border</span><span id="borderVal">0px</span></div>
+<input type="range" id="borderInput" min="0" max="10" value="0">
+</div>
+<div>
+<div class="slider-label"><span>Shadow</span><span id="shadowVal">8px</span></div>
+<input type="range" id="shadowInput" min="0" max="20" value="8">
+</div>
+</div>
+</div>
+
+<div class="settings-group">
+<span class="field-label">Custom source image (optional)</span>
+<input type="text" id="urlInput" value="https://raw.githubusercontent.com/nako-hikari/assets/refs/heads/main/random/meme.png">
+</div>
+
+</div>
+
+<div class="tab-panel" data-panel="layout">
+
+<div class="settings-group">
+<div class="field-row">
+<div class="slider-label"><span>Rotation</span><span id="rotVal">0°</span></div>
+<input type="range" id="rotInput" min="0" max="20" value="0">
+</div>
+<div class="field-row">
+<div class="slider-label"><span>Font size</span><span id="fontSizeVal">34px</span></div>
+<input type="range" id="fontSizeInput" min="16" max="80" value="34">
+</div>
+<div class="two-col">
+<div>
+<div class="slider-label"><span>Padding X</span><span id="padXVal">12px</span></div>
+<input type="range" id="padXInput" min="2" max="30" value="12">
+</div>
+<div>
+<div class="slider-label"><span>Padding Y</span><span id="padYVal">8px</span></div>
+<input type="range" id="padYInput" min="2" max="24" value="8">
+</div>
+</div>
+<div class="two-col">
+<div>
+<div class="slider-label"><span>Word gap</span><span id="gapVal">6px</span></div>
+<input type="range" id="gapInput" min="0" max="25" value="6">
+</div>
+<div>
+<div class="slider-label"><span>Line height</span><span id="lineVal">1.25</span></div>
+<input type="range" id="lineInput" min="0.9" max="2.2" step="0.05" value="1.25">
+</div>
+</div>
+</div>
+
+<div class="settings-group">
+<div class="group-label">Realism</div>
+<div class="field-row">
+<div class="slider-label"><span>Size variance</span><span id="sizeJitterVal">8%</span></div>
+<input type="range" id="sizeJitterInput" min="0" max="20" value="8">
+</div>
+<div class="field-row">
+<div class="slider-label"><span>Placement offset</span><span id="posJitterVal">5px</span></div>
+<input type="range" id="posJitterInput" min="0" max="10" value="5">
+</div>
+<div class="field-row">
+<div class="slider-label"><span>Text offset</span><span id="textJitterVal">2px</span></div>
+<input type="range" id="textJitterInput" min="0" max="8" value="2">
+</div>
+<div class="field-row">
+<div class="slider-label"><span>Image quality</span><span id="qualityVal">60%</span></div>
+<input type="range" id="qualityInput" min="20" max="100" value="60">
+</div>
+</div>
+
+</div>
+
+<button class="primary gradient export-btn" id="exportBtn">
+<img class="icon" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/file_download.png" alt="">
+Export PNG
+</button>
+
+</div>
+
+<div class="footer">
+<div class="footer-title">Nako Hikari</div>
+<div class="footer-links">
+<a href="https://github.com/nako-hikari/" target="_blank" class="social">
+<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/github.svg" alt="GitHub">
+GitHub
+</a>
+<a href="https://m.youtube.com/@NaCryst" target="_blank" class="social">
+<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/youtube.svg" alt="YouTube">
+YouTube
+</a>
+<a href="https://www.tiktok.com/@nako_hikari_mc" target="_blank" class="social">
+<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/tiktok.svg" alt="TikTok">
+TikTok
+</a>
+<a href="https://ko-fi.com/arialicee" target="_blank" class="social kofi">
+<img src="https://raw.githubusercontent.com/nako-hikari/support-files/main/assets/kofi-icon.png" alt="Ko-fi">
+Support me on Ko-fi
+</a>
+</div>
+</div>
+
+</div>
+
+<div class="modal-overlay" id="nakoModal">
+<div class="modal">
+<div class="modal-header">
+<h2 class="modal-title" id="nakoModalTitle"></h2>
+<button class="modal-close interactive" onclick="closeNakoModal()" aria-label="Close">
+<img class="icon" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/close.png" alt="">
+</button>
+</div>
+<div class="modal-body" id="nakoModalBody"></div>
+<div class="modal-footer" id="nakoModalFooter"></div>
+</div>
+</div>
+
+<script>
+function toggleTheme() {
+    const root = document.documentElement;
+    const btn = document.querySelector('.theme-toggle');
+    const icon = document.getElementById('theme-icon');
+    const goingLight = root.getAttribute('data-theme') !== 'light';
+
+    btn.classList.add('spinning');
+    setTimeout(() => btn.classList.remove('spinning'), 400);
+
+    if (goingLight) {
+        root.setAttribute('data-theme', 'light');
+        icon.src = 'https://raw.githubusercontent.com/nako-hikari/assets/main/ui/sun.png';
+        localStorage.setItem('nako-theme', 'light');
+    } else {
+        root.removeAttribute('data-theme');
+        icon.src = 'https://raw.githubusercontent.com/nako-hikari/assets/main/ui/moon.png';
+        localStorage.setItem('nako-theme', 'dark');
+    }
+}
+
+(function() {
+    if (localStorage.getItem('nako-theme') === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
+        document.getElementById('theme-icon').src = 'https://raw.githubusercontent.com/nako-hikari/assets/main/ui/sun.png';
+    }
+})();
+
+function showModal(title, message, options) {
+    options = options || {};
+    document.getElementById('nakoModalTitle').textContent = title;
+    document.getElementById('nakoModalBody').textContent = message;
+
+    const footer = document.getElementById('nakoModalFooter');
+    footer.innerHTML = '';
+
+    if (options.onConfirm) {
+        const cancel = document.createElement('button');
+        cancel.className = 'secondary interactive';
+        cancel.textContent = options.cancelText || 'Cancel';
+        cancel.onclick = closeNakoModal;
+        footer.appendChild(cancel);
+
+        const confirmBtn = document.createElement('button');
+        confirmBtn.className = options.danger ? 'danger interactive' : 'primary interactive';
+        confirmBtn.textContent = options.confirmText || (options.danger ? 'Delete' : 'Confirm');
+        confirmBtn.onclick = () => { closeNakoModal(); options.onConfirm(); };
+        footer.appendChild(confirmBtn);
+    } else {
+        const ok = document.createElement('button');
+        ok.className = 'secondary interactive';
+        ok.textContent = 'OK';
+        ok.onclick = closeNakoModal;
+        footer.appendChild(ok);
+    }
+
+    document.getElementById('nakoModal').classList.add('open');
+}
+
+function closeNakoModal() {
+    document.getElementById('nakoModal').classList.remove('open');
+}
+
+document.getElementById('nakoModal').addEventListener('click', e => {
+    if (e.target.id === 'nakoModal') closeNakoModal();
+});
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeNakoModal();
+});
+
+const WORD_POOL = [
+'SHADOW', 'MIDNIGHT', 'ECHO', 'WHISPER', 'STRANGER', 'SIGNAL', 'HOLLOW', 'WANDER',
+'CIRCUIT', 'ASHES', 'ORBIT', 'RUIN', 'ABYSS', 'FROST', 'EMBER', 'VELVET', 'STATIC',
+'NEON', 'GHOST', 'TIDE', 'RUST', 'GRAVITY', 'LOOP', 'DRIFT', 'HOSTAGE', 'RANSOM',
+'PATIENCE', 'SILENCE', 'CIPHER', 'REWIND', 'FLICKER', 'MIRROR'
+];
+
+function randomSample() {
+    const count = 6 + Math.floor(Math.random() * 6);
+    const lines = [];
+    for (let i = 0; i < count; i++) {
+        lines.push(WORD_POOL[Math.floor(Math.random() * WORD_POOL.length)]);
+    }
+    return lines.join('\n');
+}
+
+const PALETTES = {
+    mostlyWhite: [
+        { bg: '#FFFFFF', text: '#000000', border: '#000000' },
+        { bg: '#F8FAFC', text: '#0F172A', border: '#0F172A' },
+        { bg: '#F1F5F9', text: '#1E293B', border: '#1E293B' },
+        { bg: '#FEF08A', text: '#000000', border: '#854D0E' },
+        { bg: '#0F172A', text: '#FFFFFF', border: '#FFFFFF' }
+    ],
+    vibrantMeme: [
+        { bg: '#FFFFFF', text: '#000000', border: '#000000' },
+        { bg: '#F43F5E', text: '#FFFFFF', border: '#881337' },
+        { bg: '#EC4899', text: '#FFFFFF', border: '#9D174D' },
+        { bg: '#0284C7', text: '#FFFFFF', border: '#0369A1' },
+        { bg: '#EAB308', text: '#000000', border: '#854D0E' },
+        { bg: '#10B981', text: '#FFFFFF', border: '#047857' },
+        { bg: '#0F172A', text: '#FFFFFF', border: '#FFFFFF' }
+    ],
+    darkNeon: [
+        { bg: '#0F172A', text: '#38BDF8', border: '#0284C7' },
+        { bg: '#18181B', text: '#F43F5E', border: '#E11D48' },
+        { bg: '#090D16', text: '#FACC15', border: '#CA8A04' },
+        { bg: '#FFFFFF', text: '#000000', border: '#000000' }
+    ],
+    monochrome: [
+        { bg: '#FFFFFF', text: '#000000', border: '#000000' },
+        { bg: '#000000', text: '#FFFFFF', border: '#FFFFFF' },
+        { bg: '#E2E8F0', text: '#0F172A', border: '#334155' }
+    ]
+};
+
+const FONTS = ['Impact', 'Anton', 'Bebas Neue'];
+const FONT_STACK = 'Impact, Haettenschweiler, "Franklin Gothic Bold", sans-serif';
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const fileInput = document.getElementById('fileInput');
+const uploadBtn = document.getElementById('uploadBtn');
+const resetBtn = document.getElementById('resetBtn');
+const rerollBtn = document.getElementById('rerollBtn');
+const sampleBtn = document.getElementById('sampleBtn');
+const dimsLabel = document.getElementById('dims');
+
+const layerRow = document.getElementById('layerRow');
+const addBtn = document.getElementById('addBtn');
+const dupBtn = document.getElementById('dupBtn');
+const delBtn = document.getElementById('delBtn');
+const captionInput = document.getElementById('captionInput');
+
+const sourceSelect = document.getElementById('sourceSelect');
+const cropInput = document.getElementById('cropInput');
+const contrastInput = document.getElementById('contrastInput');
+const paletteSelect = document.getElementById('paletteSelect');
+const customColors = document.getElementById('customColors');
+const customBg = document.getElementById('customBg');
+const customText = document.getElementById('customText');
+const borderInput = document.getElementById('borderInput');
+const shadowInput = document.getElementById('shadowInput');
+const urlInput = document.getElementById('urlInput');
+
+const scrambleToggle = document.getElementById('scrambleToggle');
+const mixToggle = document.getElementById('mixToggle');
+
+const rotInput = document.getElementById('rotInput');
+const fontSizeInput = document.getElementById('fontSizeInput');
+const padXInput = document.getElementById('padXInput');
+const padYInput = document.getElementById('padYInput');
+const gapInput = document.getElementById('gapInput');
+const lineInput = document.getElementById('lineInput');
+const sizeJitterInput = document.getElementById('sizeJitterInput');
+const posJitterInput = document.getElementById('posJitterInput');
+const textJitterInput = document.getElementById('textJitterInput');
+const qualityInput = document.getElementById('qualityInput');
+
+const exportBtn = document.getElementById('exportBtn');
+
+let bgImage = null;
+let atlas = null;
+let active = 0;
+let dragging = false;
+let resizing = false;
+let dragOffX = 0;
+let dragOffY = 0;
+
+function newBox(text, x = 60, y = 60) {
+    return {
+        id: Date.now() + Math.random(),
+        text, x, y,
+        scale: 1,
+        fontSize: 34,
+        rotMax: 0,
+        padX: 12, padY: 8, gap: 6, lineHeight: 1.25,
+        source: 'meme',
+        crop: 60, contrast: 15,
+        border: 0, shadow: 8,
+        palette: 'mostlyWhite',
+        customBg: '#ffffff', customText: '#000000',
+        scramble: true, mix: true,
+        sizeJitter: 8, posJitter: 5, textJitter: 2, quality: 60,
+        words: [],
+        bounds: { x: 0, y: 0, width: 0, height: 0 }
+    };
+}
+
+let boxes = [newBox(randomSample(), 50, 50)];
+
+window.addEventListener('DOMContentLoaded', () => {
+    initBg();
+    loadAtlas(urlInput.value);
+    syncLayerRow();
+    syncControls();
+    refreshWords(true);
+    render();
+
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            tab.classList.add('active');
+            document.querySelector(`.tab-panel[data-panel="${tab.dataset.tab}"]`).classList.add('active');
+        });
+    });
+});
+
+function initBg() {
+    const temp = document.createElement('canvas');
+    temp.width = 750;
+    temp.height = 850;
+    const tctx = temp.getContext('2d');
+
+    const grad = tctx.createLinearGradient(0, 0, 750, 850);
+    grad.addColorStop(0, '#1e293b');
+    grad.addColorStop(0.5, '#0f172a');
+    grad.addColorStop(1, '#020617');
+    tctx.fillStyle = grad;
+    tctx.fillRect(0, 0, 750, 850);
+
+    tctx.fillStyle = '#334155';
+    tctx.beginPath();
+    tctx.arc(420, 440, 190, 0, Math.PI * 2);
+    tctx.fill();
+
+    bgImage = new Image();
+    bgImage.src = temp.toDataURL();
+    bgImage.onload = render;
+}
+
+function loadAtlas(url) {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+        atlas = img;
+        refreshWords(true);
+        render();
+    };
+    img.onerror = fallbackAtlas;
+    img.src = url;
+}
+
+function fallbackAtlas() {
+    const temp = document.createElement('canvas');
+    temp.width = 512;
+    temp.height = 512;
+    const tctx = temp.getContext('2d');
+
+    tctx.fillStyle = '#f8fafc';
+    tctx.fillRect(0, 0, 512, 512);
+
+    const colors = ['#f43f5e', '#0284c7', '#eab308', '#10b981', '#1e293b', '#ffffff'];
+    for (let i = 0; i < 40; i++) {
+        tctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
+        tctx.fillRect(Math.random() * 512, Math.random() * 512, 60 + Math.random() * 80, 60 + Math.random() * 80);
+    }
+
+    atlas = new Image();
+    atlas.onload = () => { refreshWords(true); render(); };
+    atlas.src = temp.toDataURL();
+}
+
+uploadBtn.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+        const img = new Image();
+        img.onload = () => { bgImage = img; render(); };
+        img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+});
+resetBtn.addEventListener('click', initBg);
+
+function wordStyle(box) {
+    const list = PALETTES[box.palette] || PALETTES.mostlyWhite;
+    const palette = box.palette === 'custom'
+        ? { bg: box.customBg, text: box.customText, border: box.customText }
+        : list[Math.floor(Math.random() * list.length)];
+
+    const font = box.mix ? FONTS[Math.floor(Math.random() * FONTS.length)] : 'Impact';
+    const rot = box.rotMax === 0 ? 0 : (Math.random() * box.rotMax * 2 - box.rotMax) * (Math.PI / 180);
+
+    const useTexture = box.source === 'meme' ? true : box.source === 'mixed' ? Math.random() > 0.4 : false;
+
+    let cropX = 0, cropY = 0, cropW = 60, cropH = 60;
+    if (atlas && atlas.width > 0) {
+        const size = box.crop || 60;
+        const mx = Math.max(10, atlas.width - size);
+        const my = Math.max(10, atlas.height - size);
+        cropX = Math.floor(Math.random() * mx);
+        cropY = Math.floor(Math.random() * my);
+        cropW = Math.floor(size + (Math.random() * 20 - 10));
+        cropH = Math.floor(size + (Math.random() * 20 - 10));
+    }
+
+    const dark = Math.random() > 0.5;
+
+    return {
+        palette, font, rot, useTexture, cropX, cropY, cropW, cropH,
+        contrastText: dark ? '#ffffff' : '#000000',
+        flipX: Math.random() > 0.5,
+        flipY: Math.random() > 0.8,
+        sizeJitterX: 1 + (Math.random() * 2 - 1) * (box.sizeJitter / 100),
+        sizeJitterY: 1 + (Math.random() * 2 - 1) * (box.sizeJitter / 100),
+        offsetX: (Math.random() * 2 - 1) * box.posJitter,
+        offsetY: (Math.random() * 2 - 1) * box.posJitter,
+        gapMult: 1 + (Math.random() * 2 - 1) * Math.min(0.6, box.posJitter / 10),
+        textOffsetX: (Math.random() * 2 - 1) * box.textJitter,
+        textOffsetY: (Math.random() * 2 - 1) * box.textJitter
+    };
+}
+
+function formatCase(word, on) {
+    if (!on) return word;
+    const r = Math.random();
+    if (r < 0.35) return word.toUpperCase();
+    if (r < 0.7) return word.split('').map(c => Math.random() > 0.5 ? c.toUpperCase() : c.toLowerCase()).join('');
+    return word;
+}
+
+function refreshWords(force) {
+    const box = boxes[active];
+    if (!box) return;
+
+    const lines = box.text.split('\n');
+    const words = [];
+    const lineJitter = [];
+
+    lines.forEach((line, li) => {
+        const prevLJ = box.lineJitter && box.lineJitter[li];
+        lineJitter.push((prevLJ && !force) ? prevLJ : {
+            dx: (Math.random() * 2 - 1) * box.posJitter * 4,
+            dy: (Math.random() * 2 - 1) * box.posJitter * 1.5
+        });
+
+        const row = [];
+        line.trim().split(/\s+/).forEach((word, wi) => {
+            if (!word) return;
+            const prev = box.words[li] && box.words[li][wi];
+            if (prev && !force) {
+                row.push({ ...prev, out: formatCase(word, box.scramble) });
+            } else {
+                row.push({ text: word, out: formatCase(word, box.scramble), style: wordStyle(box) });
+            }
+        });
+        words.push(row);
+    });
+
+    box.words = words;
+    box.lineJitter = lineJitter;
+}
+
+function drawBadge(ctx, w, fontPx, ref, box) {
+    const rx = -w.width / 2;
+    const ry = -w.height / 2;
+
+    if (box.shadow > 0) {
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+        ctx.shadowBlur = box.shadow * ref;
+        ctx.shadowOffsetX = 2 * ref;
+        ctx.shadowOffsetY = 3 * ref;
+    } else {
+        ctx.shadowColor = 'transparent';
+    }
+
+    ctx.fillStyle = w.style.useTexture ? '#ffffff' : w.style.palette.bg;
+    ctx.fillRect(rx, ry, w.width, w.height);
+    ctx.shadowColor = 'transparent';
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(rx, ry, w.width, w.height);
+    ctx.clip();
+
+    const hi = document.createElement('canvas');
+    hi.width = Math.max(1, Math.ceil(w.width));
+    hi.height = Math.max(1, Math.ceil(w.height));
+    const hctx = hi.getContext('2d');
+
+    if (w.style.useTexture && atlas && atlas.complete && atlas.width > 0) {
+        hctx.save();
+        if (w.style.flipX || w.style.flipY) {
+            hctx.translate(hi.width / 2, hi.height / 2);
+            hctx.scale(w.style.flipX ? -1 : 1, w.style.flipY ? -1 : 1);
+            hctx.translate(-hi.width / 2, -hi.height / 2);
+        }
+        hctx.imageSmoothingEnabled = true;
+        hctx.imageSmoothingQuality = 'high';
+        hctx.drawImage(atlas, w.style.cropX, w.style.cropY, w.style.cropW, w.style.cropH, 0, 0, hi.width, hi.height);
+        hctx.restore();
+    } else {
+        hctx.fillStyle = w.style.palette.bg;
+        hctx.fillRect(0, 0, hi.width, hi.height);
+    }
+
+    const textColor = w.style.useTexture ? w.style.contrastText : w.style.palette.text;
+    hctx.font = `bold ${fontPx}px "${w.style.font}", ${FONT_STACK}`;
+    hctx.textAlign = 'center';
+    hctx.textBaseline = 'middle';
+
+    const tx = hi.width / 2 + w.style.textOffsetX * ref;
+    const ty = hi.height / 2 + w.style.textOffsetY * ref + (1 * ref);
+
+    if (w.style.useTexture) {
+        hctx.strokeStyle = textColor === '#ffffff' ? '#000000' : '#ffffff';
+        hctx.lineWidth = Math.max(2, fontPx * 0.08);
+        hctx.strokeText(w.out, tx, ty);
+    }
+    hctx.fillStyle = textColor;
+    hctx.fillText(w.out, tx, ty);
+
+    const q = Math.max(0.15, Math.min(1, box.quality / 100));
+    const loW = Math.max(1, Math.round(hi.width * q));
+    const loH = Math.max(1, Math.round(hi.height * q));
+    const lo = document.createElement('canvas');
+    lo.width = loW;
+    lo.height = loH;
+    const lctx = lo.getContext('2d');
+    lctx.imageSmoothingEnabled = true;
+    lctx.imageSmoothingQuality = 'high';
+    lctx.drawImage(hi, 0, 0, loW, loH);
+
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(lo, 0, 0, loW, loH, rx, ry, w.width, w.height);
+    ctx.imageSmoothingEnabled = true;
+    ctx.restore();
+
+    if (box.border > 0) {
+        ctx.strokeStyle = w.style.useTexture ? '#000000' : w.style.palette.border;
+        ctx.lineWidth = box.border * ref * box.scale;
+        ctx.strokeRect(rx, ry, w.width, w.height);
+    }
+}
+
+function render() {
+    if (!bgImage) return;
+
+    canvas.width = bgImage.naturalWidth || bgImage.width || 800;
+    canvas.height = bgImage.naturalHeight || bgImage.height || 800;
+    dimsLabel.textContent = `${canvas.width} × ${canvas.height} px`;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+
+    const ref = canvas.width / 750;
+
+    boxes.forEach((box, i) => {
+        const isActive = i === active;
+        ctx.save();
+        ctx.translate(box.x, box.y);
+
+        const fontPx = box.fontSize * ref * box.scale;
+        const lineSpacing = fontPx * box.lineHeight;
+
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        let curY = 0;
+
+        box.words.forEach((row, li) => {
+            if (!row || row.length === 0) {
+                curY += lineSpacing * 0.5;
+                return;
+            }
+
+            const lj = (box.lineJitter && box.lineJitter[li]) || { dx: 0, dy: 0 };
+            const lineStartX = lj.dx * ref;
+            const lineY = curY + lj.dy * ref;
+
+            const measured = row.map(w => {
+                ctx.font = `bold ${fontPx}px "${w.style.font}", ${FONT_STACK}`;
+                const m = ctx.measureText(w.out);
+                const baseW = m.width + (box.padX * 2 * ref * box.scale);
+                const baseH = fontPx + (box.padY * 2 * ref * box.scale);
+                return { ...w, width: baseW * w.style.sizeJitterX, height: baseH * w.style.sizeJitterY };
+            });
+
+            const gap = box.gap * ref * box.scale;
+            let curX = lineStartX;
+
+            measured.forEach(w => {
+                ctx.save();
+                const jx = w.style.offsetX * ref;
+                const jy = w.style.offsetY * ref;
+                const cx = curX + w.width / 2 + jx;
+                const cy = lineY + w.height / 2 + jy;
+
+                minX = Math.min(minX, curX + jx);
+                minY = Math.min(minY, lineY + jy);
+                maxX = Math.max(maxX, curX + w.width + jx);
+                maxY = Math.max(maxY, lineY + w.height + jy);
+
+                ctx.translate(cx, cy);
+                ctx.rotate(w.style.rot);
+                drawBadge(ctx, w, fontPx, ref, box);
+                ctx.restore();
+
+                curX += w.width + gap * w.style.gapMult;
+            });
+
+            curY += lineSpacing;
+        });
+
+        box.bounds = {
+            x: box.x + (minX === Infinity ? 0 : minX),
+            y: box.y + (minY === Infinity ? 0 : minY),
+            width: Math.max(40, maxX - minX),
+            height: Math.max(20, maxY - minY)
+        };
+
+        if (isActive) {
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 2 * ref;
+            ctx.setLineDash([6 * ref, 4 * ref]);
+            ctx.strokeRect(minX - 6, minY - 6, box.bounds.width + 12, box.bounds.height + 12);
+            ctx.setLineDash([]);
+
+            const hx = minX + box.bounds.width + 6;
+            const hy = minY + box.bounds.height + 6;
+            ctx.fillStyle = '#38bdf8';
+            ctx.fillRect(hx - 6, hy - 6, 12 * ref, 12 * ref);
+        }
+
+        ctx.restore();
+    });
+}
+
+function syncLayerRow() {
+    layerRow.innerHTML = '';
+    boxes.forEach((box, i) => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = `layer-chip ${i === active ? 'active' : ''}`;
+        chip.textContent = `#${i + 1}`;
+        chip.addEventListener('click', () => {
+            active = i;
+            syncLayerRow();
+            syncControls();
+            render();
+        });
+        layerRow.appendChild(chip);
+    });
+}
+
+function syncControls() {
+    const box = boxes[active];
+    if (!box) return;
+
+    captionInput.value = box.text;
+    sourceSelect.value = box.source;
+    cropInput.value = box.crop;
+    document.getElementById('cropVal').textContent = `${box.crop}px`;
+    contrastInput.value = box.contrast;
+    document.getElementById('contrastVal').textContent = `${box.contrast}%`;
+    borderInput.value = box.border;
+    document.getElementById('borderVal').textContent = `${box.border}px`;
+    shadowInput.value = box.shadow;
+    document.getElementById('shadowVal').textContent = `${box.shadow}px`;
+    fontSizeInput.value = box.fontSize;
+    document.getElementById('fontSizeVal').textContent = `${box.fontSize}px`;
+    rotInput.value = box.rotMax;
+    document.getElementById('rotVal').textContent = `${box.rotMax}°`;
+    padXInput.value = box.padX;
+    document.getElementById('padXVal').textContent = `${box.padX}px`;
+    padYInput.value = box.padY;
+    document.getElementById('padYVal').textContent = `${box.padY}px`;
+    gapInput.value = box.gap;
+    document.getElementById('gapVal').textContent = `${box.gap}px`;
+    lineInput.value = box.lineHeight;
+    document.getElementById('lineVal').textContent = `${box.lineHeight}`;
+    sizeJitterInput.value = box.sizeJitter;
+    document.getElementById('sizeJitterVal').textContent = `${box.sizeJitter}%`;
+    posJitterInput.value = box.posJitter;
+    document.getElementById('posJitterVal').textContent = `${box.posJitter}px`;
+    textJitterInput.value = box.textJitter;
+    document.getElementById('textJitterVal').textContent = `${box.textJitter}px`;
+    qualityInput.value = box.quality;
+    document.getElementById('qualityVal').textContent = `${box.quality}%`;
+    paletteSelect.value = box.palette;
+    customBg.value = box.customBg;
+    customText.value = box.customText;
+    customColors.classList.toggle('hidden', box.palette !== 'custom');
+    scrambleToggle.checked = box.scramble;
+    mixToggle.checked = box.mix;
+}
+
+captionInput.addEventListener('input', e => {
+    boxes[active].text = e.target.value;
+    refreshWords(false);
+    render();
+});
+
+sourceSelect.addEventListener('change', e => {
+    boxes[active].source = e.target.value;
+    refreshWords(true);
+    render();
+});
+
+cropInput.addEventListener('input', e => {
+    boxes[active].crop = parseInt(e.target.value, 10);
+    document.getElementById('cropVal').textContent = `${boxes[active].crop}px`;
+    refreshWords(true);
+    render();
+});
+
+contrastInput.addEventListener('input', e => {
+    boxes[active].contrast = parseInt(e.target.value, 10);
+    document.getElementById('contrastVal').textContent = `${boxes[active].contrast}%`;
+    render();
+});
+
+paletteSelect.addEventListener('change', e => {
+    boxes[active].palette = e.target.value;
+    customColors.classList.toggle('hidden', e.target.value !== 'custom');
+    refreshWords(true);
+    render();
+});
+
+customBg.addEventListener('input', e => {
+    boxes[active].customBg = e.target.value;
+    refreshWords(true);
+    render();
+});
+
+customText.addEventListener('input', e => {
+    boxes[active].customText = e.target.value;
+    refreshWords(true);
+    render();
+});
+
+borderInput.addEventListener('input', e => {
+    boxes[active].border = parseInt(e.target.value, 10);
+    document.getElementById('borderVal').textContent = `${boxes[active].border}px`;
+    render();
+});
+
+shadowInput.addEventListener('input', e => {
+    boxes[active].shadow = parseInt(e.target.value, 10);
+    document.getElementById('shadowVal').textContent = `${boxes[active].shadow}px`;
+    render();
+});
+
+fontSizeInput.addEventListener('input', e => {
+    boxes[active].fontSize = parseInt(e.target.value, 10);
+    document.getElementById('fontSizeVal').textContent = `${boxes[active].fontSize}px`;
+    render();
+});
+
+rotInput.addEventListener('input', e => {
+    boxes[active].rotMax = parseInt(e.target.value, 10);
+    document.getElementById('rotVal').textContent = `${boxes[active].rotMax}°`;
+    refreshWords(true);
+    render();
+});
+
+padXInput.addEventListener('input', e => {
+    boxes[active].padX = parseInt(e.target.value, 10);
+    document.getElementById('padXVal').textContent = `${boxes[active].padX}px`;
+    render();
+});
+
+padYInput.addEventListener('input', e => {
+    boxes[active].padY = parseInt(e.target.value, 10);
+    document.getElementById('padYVal').textContent = `${boxes[active].padY}px`;
+    render();
+});
+
+gapInput.addEventListener('input', e => {
+    boxes[active].gap = parseInt(e.target.value, 10);
+    document.getElementById('gapVal').textContent = `${boxes[active].gap}px`;
+    render();
+});
+
+lineInput.addEventListener('input', e => {
+    boxes[active].lineHeight = parseFloat(e.target.value);
+    document.getElementById('lineVal').textContent = `${boxes[active].lineHeight}`;
+    render();
+});
+
+sizeJitterInput.addEventListener('input', e => {
+    boxes[active].sizeJitter = parseInt(e.target.value, 10);
+    document.getElementById('sizeJitterVal').textContent = `${boxes[active].sizeJitter}%`;
+    refreshWords(true);
+    render();
+});
+
+posJitterInput.addEventListener('input', e => {
+    boxes[active].posJitter = parseInt(e.target.value, 10);
+    document.getElementById('posJitterVal').textContent = `${boxes[active].posJitter}px`;
+    refreshWords(true);
+    render();
+});
+
+textJitterInput.addEventListener('input', e => {
+    boxes[active].textJitter = parseInt(e.target.value, 10);
+    document.getElementById('textJitterVal').textContent = `${boxes[active].textJitter}px`;
+    refreshWords(true);
+    render();
+});
+
+qualityInput.addEventListener('input', e => {
+    boxes[active].quality = parseInt(e.target.value, 10);
+    document.getElementById('qualityVal').textContent = `${boxes[active].quality}%`;
+    render();
+});
+
+scrambleToggle.addEventListener('change', e => {
+    boxes[active].scramble = e.target.checked;
+    refreshWords(false);
+    render();
+});
+
+mixToggle.addEventListener('change', e => {
+    boxes[active].mix = e.target.checked;
+    refreshWords(true);
+    render();
+});
+
+urlInput.addEventListener('change', e => {
+    const url = e.target.value.trim();
+    if (url) loadAtlas(url);
+});
+
+addBtn.addEventListener('click', () => {
+    const y = 60 + (boxes.length * 40);
+    boxes.push(newBox(randomSample(), 60, y));
+    active = boxes.length - 1;
+    syncLayerRow();
+    syncControls();
+    refreshWords(true);
+    render();
+});
+
+dupBtn.addEventListener('click', () => {
+    const src = boxes[active];
+    if (!src) return;
+    const copy = newBox(src.text, src.x + 30, src.y + 30);
+    Object.assign(copy, {
+        scale: src.scale, fontSize: src.fontSize, source: src.source, crop: src.crop,
+        border: src.border, shadow: src.shadow, palette: src.palette, customBg: src.customBg,
+        customText: src.customText, scramble: src.scramble, mix: src.mix,
+        sizeJitter: src.sizeJitter, posJitter: src.posJitter, textJitter: src.textJitter, quality: src.quality
+    });
+    boxes.push(copy);
+    active = boxes.length - 1;
+    syncLayerRow();
+    syncControls();
+    refreshWords(true);
+    render();
+});
+
+delBtn.addEventListener('click', () => {
+    if (boxes.length <= 1) return;
+    showModal('Delete caption?', 'This removes the caption block and its text.', {
+        danger: true,
+        confirmText: 'Delete',
+        onConfirm: () => {
+            boxes.splice(active, 1);
+            active = Math.max(0, active - 1);
+            syncLayerRow();
+            syncControls();
+            render();
+        }
+    });
+});
+
+sampleBtn.addEventListener('click', () => {
+    const sample = randomSample();
+    captionInput.value = sample;
+    boxes[active].text = sample;
+    refreshWords(true);
+    render();
+});
+
+rerollBtn.addEventListener('click', () => {
+    refreshWords(true);
+    render();
+});
+
+function getCoords(e) {
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+}
+
+canvas.addEventListener('mousedown', startDrag);
+canvas.addEventListener('touchstart', startDrag, { passive: false });
+
+function startDrag(e) {
+    const coords = getCoords(e);
+    const box = boxes[active];
+
+    if (box) {
+        const hx = box.bounds.x + box.bounds.width + 6;
+        const hy = box.bounds.y + box.bounds.height + 6;
+        if (Math.hypot(coords.x - hx, coords.y - hy) < 35) {
+            resizing = true;
+            e.preventDefault();
+            return;
+        }
+    }
+
+    for (let i = boxes.length - 1; i >= 0; i--) {
+        const b = boxes[i];
+        if (coords.x >= b.bounds.x && coords.x <= b.bounds.x + b.bounds.width &&
+            coords.y >= b.bounds.y && coords.y <= b.bounds.y + b.bounds.height) {
+            active = i;
+            dragging = true;
+            dragOffX = coords.x - b.x;
+            dragOffY = coords.y - b.y;
+            syncLayerRow();
+            syncControls();
+            render();
+            e.preventDefault();
+            return;
+        }
+    }
+}
+
+window.addEventListener('mousemove', dragMove);
+window.addEventListener('touchmove', dragMove, { passive: false });
+
+function dragMove(e) {
+    if (!dragging && !resizing) return;
+    const coords = getCoords(e);
+
+    if (dragging) {
+        const box = boxes[active];
+        box.x = coords.x - dragOffX;
+        box.y = coords.y - dragOffY;
+        render();
+        e.preventDefault();
+    } else if (resizing) {
+        const box = boxes[active];
+        const dx = coords.x - box.bounds.x;
+        box.scale = Math.max(0.3, Math.min(3.5, dx / (box.bounds.width / box.scale)));
+        render();
+        e.preventDefault();
+    }
+}
+
+window.addEventListener('mouseup', () => { dragging = false; resizing = false; });
+window.addEventListener('touchend', () => { dragging = false; resizing = false; });
+
+exportBtn.addEventListener('click', () => {
+    const out = document.createElement('canvas');
+    out.width = canvas.width;
+    out.height = canvas.height;
+    const octx = out.getContext('2d');
+
+    const prev = active;
+    active = -1;
+    render();
+    octx.drawImage(canvas, 0, 0);
+    active = prev;
+    render();
+
+    const link = document.createElement('a');
+    link.download = `cutout-caption-${Date.now()}.png`;
+    link.href = out.toDataURL('image/png');
+    link.click();
+});
+
+document.fonts.ready.then(render);
+</script>
+</body>
+</html>
