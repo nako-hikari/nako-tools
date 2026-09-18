@@ -166,7 +166,7 @@ html[data-theme="light"] {
     -webkit-tap-highlight-color: transparent;
 }
 
-html { -webkit-text-size-adjust: 100%; }
+html { -webkit-text-size-adjust: 100%; overflow-x: hidden; }
 
 body {
     margin: 0;
@@ -177,9 +177,12 @@ body {
     line-height: var(--lh-normal);
     -webkit-font-smoothing: antialiased;
     display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
+    max-width: 100vw;
+    overflow-x: hidden;
     padding: var(--space-2xl) var(--space-lg);
     transition: background-color var(--transition-normal), color var(--transition-normal);
 }
