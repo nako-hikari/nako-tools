@@ -7,11 +7,13 @@
 <link rel="stylesheet" href="/css/nako.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Luckiest+Guy&family=Baloo+2:wght@700&family=Fredoka:wght@600&display=swap" rel="stylesheet">
 <style>
 .theme-toggle-row{ display:flex; justify-content:flex-end; margin-bottom:var(--space-md); }
 .preview{ background:var(--input-bg); border:var(--border-width) solid var(--border-color); border-radius:var(--radius-lg); padding:var(--space-md); display:flex; align-items:center; justify-content:center; margin-top:var(--space-lg); }
-.preview canvas{ max-width:100%; height:auto; display:block; border-radius:var(--radius-md); cursor:grab; touch-action:none; }
+.preview canvas{ max-width:100%; height:auto; display:block; border-radius:var(--radius-md); cursor:grab; touch-action:none;
+background-image:linear-gradient(45deg, var(--border-color) 25%, transparent 25%), linear-gradient(-45deg, var(--border-color) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, var(--border-color) 75%), linear-gradient(-45deg, transparent 75%, var(--border-color) 75%);
+background-size:16px 16px; background-position:0 0, 0 8px, 8px -8px, -8px 0; }
 .preview canvas:active{ cursor:grabbing; }
 .preview-bar{ display:flex; align-items:center; justify-content:space-between; gap:var(--space-sm); flex-wrap:wrap; margin-top:var(--space-sm); }
 .preview-actions{ display:flex; gap:var(--space-xs); }
@@ -37,6 +39,16 @@
 .custom-colors{ margin-top:var(--space-md); }
 .custom-colors.hidden{ display:none; }
 .export-btn{ width:100%; margin-top:var(--space-xl); display:flex; align-items:center; justify-content:center; gap:var(--space-sm); }
+.hue-row{ display:flex; align-items:center; gap:var(--space-sm); }
+.hue-row input[type="range"]{ flex:1; }
+.hue-preview{ width:28px; height:28px; border-radius:var(--radius-sm); border:var(--border-width) solid var(--border-color); flex-shrink:0; }
+.swatch-grid{ display:grid; grid-template-columns:repeat(8, 1fr); gap:6px; margin-top:var(--space-sm); }
+.swatch{ width:100%; aspect-ratio:1; border-radius:var(--radius-sm); border:var(--border-width) solid var(--border-color); cursor:pointer; padding:0; }
+.swatch.active{ outline:2px solid var(--accent-light); outline-offset:2px; }
+.hidden{ display:none; }
+.crop-ratio-row{ display:flex; gap:var(--space-xs); overflow-x:auto; padding-bottom:var(--space-sm); }
+.crop-stage{ display:flex; align-items:center; justify-content:center; background:var(--input-bg); border-radius:var(--radius-md); overflow:hidden; touch-action:none; }
+.crop-stage canvas{ display:block; max-width:100%; cursor:move; }
 </style>
 </head>
 <body>
@@ -129,6 +141,30 @@
 
 <div class="settings-group">
 <div class="field-row">
+<span class="field-label">Caption mode</span>
+<select id="modeSelect">
+<option value="cutout" selected>Cutout</option>
+<option value="sticker">Sticker</option>
+</select>
+</div>
+</div>
+
+<div class="settings-group">
+<div class="group-label">Canvas background</div>
+<div class="toggle-row">
+<span class="field-label">Transparent</span>
+<label class="toggle-switch">
+<input type="checkbox" id="transparentToggle" checked>
+<span class="slider"></span>
+</label>
+</div>
+<div class="field-row hidden" id="canvasColorRow">
+<input type="color" id="canvasColorInput" value="#ffffff">
+</div>
+</div>
+
+<div class="settings-group">
+<div class="field-row">
 <span class="field-label">Background source</span>
 <select id="sourceSelect">
 <option value="meme" selected>Cropped photo snippets</option>
@@ -179,6 +215,40 @@
 <div class="slider-label"><span>Shadow</span><span id="shadowVal">8px</span></div>
 <input type="range" id="shadowInput" min="0" max="20" value="8">
 </div>
+</div>
+<div class="toggle-row">
+<span class="field-label">Background box</span>
+<label class="toggle-switch">
+<input type="checkbox" id="showBoxToggle" checked>
+<span class="slider"></span>
+</label>
+</div>
+</div>
+
+<div class="settings-group">
+<div class="group-label">Text color</div>
+<div class="field-row">
+<select id="textColorModeSelect">
+<option value="auto" selected>Auto per word</option>
+<option value="custom">Custom</option>
+</select>
+</div>
+<div id="textColorCustom" class="hidden">
+<div class="field-row">
+<div class="hue-row">
+<input type="range" id="textHueInput" min="0" max="360" value="0">
+<div class="hue-preview" id="huePreview"></div>
+</div>
+</div>
+<div class="field-row">
+<span class="field-label">Outline</span>
+<select id="textOutlineSelect">
+<option value="black" selected>Black</option>
+<option value="white">White</option>
+<option value="none">None</option>
+</select>
+</div>
+<div class="swatch-grid" id="textSwatchGrid"></div>
 </div>
 </div>
 
@@ -288,6 +358,34 @@ Support me on Ko-fi
 </div>
 </div>
 
+<div class="modal-overlay" id="cropModal">
+<div class="modal">
+<div class="modal-header">
+<h2 class="modal-title">Crop image</h2>
+<button class="modal-close interactive" id="cropCloseBtn" aria-label="Close">
+<img class="icon" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/close.png" alt="">
+</button>
+</div>
+<div class="modal-body">
+<div class="crop-ratio-row" id="cropRatioRow">
+<button type="button" class="layer-chip active" data-ratio="free">Free</button>
+<button type="button" class="layer-chip" data-ratio="1:1">1:1</button>
+<button type="button" class="layer-chip" data-ratio="4:5">4:5</button>
+<button type="button" class="layer-chip" data-ratio="3:4">3:4</button>
+<button type="button" class="layer-chip" data-ratio="16:9">16:9</button>
+<button type="button" class="layer-chip" data-ratio="9:16">9:16</button>
+</div>
+<div class="crop-stage">
+<canvas id="cropCanvas"></canvas>
+</div>
+</div>
+<div class="modal-footer">
+<button type="button" class="secondary interactive" id="cropCancelBtn">Cancel</button>
+<button type="button" class="primary interactive" id="cropApplyBtn">Apply</button>
+</div>
+</div>
+</div>
+
 <script>
 function toggleTheme() {
     const root = document.documentElement;
@@ -355,7 +453,10 @@ document.getElementById('nakoModal').addEventListener('click', e => {
     if (e.target.id === 'nakoModal') closeNakoModal();
 });
 document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') closeNakoModal();
+    if (e.key === 'Escape') {
+        closeNakoModal();
+        closeCropModal();
+    }
 });
 
 const WORD_POOL = [
@@ -406,6 +507,50 @@ const PALETTES = {
 
 const FONTS = ['Impact', 'Anton', 'Bebas Neue'];
 const FONT_STACK = 'Impact, Haettenschweiler, "Franklin Gothic Bold", sans-serif';
+const STICKER_FONTS = ['Luckiest Guy', 'Baloo 2', 'Fredoka'];
+
+const STICKER_PALETTE = [
+    { bg: '#F43F5E', text: '#FFFFFF', border: '#000000' },
+    { bg: '#FB923C', text: '#000000', border: '#000000' },
+    { bg: '#FACC15', text: '#000000', border: '#000000' },
+    { bg: '#A3E635', text: '#000000', border: '#000000' },
+    { bg: '#34D399', text: '#000000', border: '#000000' },
+    { bg: '#2DD4BF', text: '#000000', border: '#000000' },
+    { bg: '#38BDF8', text: '#FFFFFF', border: '#000000' },
+    { bg: '#818CF8', text: '#FFFFFF', border: '#000000' },
+    { bg: '#C084FC', text: '#FFFFFF', border: '#000000' },
+    { bg: '#F472B6', text: '#FFFFFF', border: '#000000' },
+    { bg: '#FB7185', text: '#FFFFFF', border: '#000000' },
+    { bg: '#FDE047', text: '#000000', border: '#000000' },
+    { bg: '#4ADE80', text: '#000000', border: '#000000' },
+    { bg: '#22D3EE', text: '#000000', border: '#000000' },
+    { bg: '#60A5FA', text: '#FFFFFF', border: '#000000' },
+    { bg: '#A78BFA', text: '#FFFFFF', border: '#000000' },
+    { bg: '#E879F9', text: '#FFFFFF', border: '#000000' },
+    { bg: '#FCA5A5', text: '#000000', border: '#000000' },
+    { bg: '#FDBA74', text: '#000000', border: '#000000' },
+    { bg: '#FFFFFF', text: '#000000', border: '#000000' },
+    { bg: '#0F172A', text: '#FFFFFF', border: '#000000' },
+    { bg: '#DC2626', text: '#FFFFFF', border: '#000000' },
+    { bg: '#059669', text: '#FFFFFF', border: '#000000' },
+    { bg: '#7C3AED', text: '#FFFFFF', border: '#000000' },
+    { bg: '#DB2777', text: '#FFFFFF', border: '#000000' },
+    { bg: '#0891B2', text: '#FFFFFF', border: '#000000' },
+    { bg: '#65A30D', text: '#FFFFFF', border: '#000000' },
+    { bg: '#EA580C', text: '#FFFFFF', border: '#000000' },
+    { bg: '#9333EA', text: '#FFFFFF', border: '#000000' },
+    { bg: '#0D9488', text: '#FFFFFF', border: '#000000' }
+];
+
+const TEXT_SWATCHES = [
+    '#FFFFFF', '#000000', '#F8FAFC', '#94A3B8', '#F43F5E', '#FB7185', '#FDA4AF', '#FB923C',
+    '#FDBA74', '#FACC15', '#FDE047', '#A3E635', '#4ADE80', '#34D399', '#2DD4BF', '#22D3EE',
+    '#38BDF8', '#60A5FA', '#818CF8', '#A78BFA', '#C084FC', '#E879F9', '#F472B6', '#DC2626',
+    '#EA580C', '#CA8A04', '#16A34A', '#0891B2', '#2563EB', '#7C3AED', '#9333EA', '#DB2777'
+];
+
+const DEFAULT_W = 800;
+const DEFAULT_H = 800;
 
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
@@ -433,6 +578,18 @@ const borderInput = document.getElementById('borderInput');
 const shadowInput = document.getElementById('shadowInput');
 const urlInput = document.getElementById('urlInput');
 
+const modeSelect = document.getElementById('modeSelect');
+const transparentToggle = document.getElementById('transparentToggle');
+const canvasColorRow = document.getElementById('canvasColorRow');
+const canvasColorInput = document.getElementById('canvasColorInput');
+const showBoxToggle = document.getElementById('showBoxToggle');
+const textColorModeSelect = document.getElementById('textColorModeSelect');
+const textColorCustom = document.getElementById('textColorCustom');
+const textHueInput = document.getElementById('textHueInput');
+const huePreview = document.getElementById('huePreview');
+const textOutlineSelect = document.getElementById('textOutlineSelect');
+const textSwatchGrid = document.getElementById('textSwatchGrid');
+
 const scrambleToggle = document.getElementById('scrambleToggle');
 const mixToggle = document.getElementById('mixToggle');
 
@@ -456,6 +613,8 @@ let dragging = false;
 let resizing = false;
 let dragOffX = 0;
 let dragOffY = 0;
+let canvasTransparent = true;
+let canvasBgColor = '#ffffff';
 
 function newBox(text, x = 60, y = 60) {
     return {
@@ -472,6 +631,8 @@ function newBox(text, x = 60, y = 60) {
         customBg: '#ffffff', customText: '#000000',
         scramble: true, mix: true,
         sizeJitter: 8, posJitter: 5, textJitter: 2, quality: 60,
+        mode: 'cutout', showBox: true,
+        textColorMode: 'auto', textColor: '#ffffff', textOutline: 'black',
         words: [],
         bounds: { x: 0, y: 0, width: 0, height: 0 }
     };
@@ -480,8 +641,8 @@ function newBox(text, x = 60, y = 60) {
 let boxes = [newBox(randomSample(), 50, 50)];
 
 window.addEventListener('DOMContentLoaded', () => {
-    initBg();
     loadAtlas(urlInput.value);
+    buildSwatchGrid();
     syncLayerRow();
     syncControls();
     refreshWords(true);
@@ -497,27 +658,54 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-function initBg() {
-    const temp = document.createElement('canvas');
-    temp.width = 750;
-    temp.height = 850;
-    const tctx = temp.getContext('2d');
+function hslToHex(h, s, l) {
+    s /= 100; l /= 100;
+    const k = n => (n + h / 30) % 12;
+    const a = s * Math.min(l, 1 - l);
+    const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+    const toHex = x => Math.round(255 * x).toString(16).padStart(2, '0');
+    return `#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`;
+}
 
-    const grad = tctx.createLinearGradient(0, 0, 750, 850);
-    grad.addColorStop(0, '#1e293b');
-    grad.addColorStop(0.5, '#0f172a');
-    grad.addColorStop(1, '#020617');
-    tctx.fillStyle = grad;
-    tctx.fillRect(0, 0, 750, 850);
+function roundRectPath(c, x, y, w, h, r) {
+    r = Math.max(0, Math.min(r, w / 2, h / 2));
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.lineTo(x + w - r, y);
+    c.arcTo(x + w, y, x + w, y + r, r);
+    c.lineTo(x + w, y + h - r);
+    c.arcTo(x + w, y + h, x + w - r, y + h, r);
+    c.lineTo(x + r, y + h);
+    c.arcTo(x, y + h, x, y + h - r, r);
+    c.lineTo(x, y + r);
+    c.arcTo(x, y, x + r, y, r);
+    c.closePath();
+}
 
-    tctx.fillStyle = '#334155';
-    tctx.beginPath();
-    tctx.arc(420, 440, 190, 0, Math.PI * 2);
-    tctx.fill();
+function buildSwatchGrid() {
+    textSwatchGrid.innerHTML = '';
+    TEXT_SWATCHES.forEach(hex => {
+        const sw = document.createElement('button');
+        sw.type = 'button';
+        sw.className = 'swatch';
+        sw.style.background = hex;
+        sw.addEventListener('click', () => {
+            boxes[active].textColor = hex;
+            boxes[active].textColorMode = 'custom';
+            textColorModeSelect.value = 'custom';
+            textColorCustom.classList.remove('hidden');
+            syncSwatchActive();
+            render();
+        });
+        textSwatchGrid.appendChild(sw);
+    });
+}
 
-    bgImage = new Image();
-    bgImage.src = temp.toDataURL();
-    bgImage.onload = render;
+function syncSwatchActive() {
+    const box = boxes[active];
+    document.querySelectorAll('.swatch').forEach((sw, i) => {
+        sw.classList.toggle('active', TEXT_SWATCHES[i].toLowerCase() === (box.textColor || '').toLowerCase());
+    });
 }
 
 function loadAtlas(url) {
@@ -559,20 +747,219 @@ fileInput.addEventListener('change', e => {
     const reader = new FileReader();
     reader.onload = ev => {
         const img = new Image();
-        img.onload = () => { bgImage = img; render(); };
+        img.onload = () => openCropModal(img);
         img.src = ev.target.result;
     };
     reader.readAsDataURL(file);
+    fileInput.value = '';
 });
-resetBtn.addEventListener('click', initBg);
+resetBtn.addEventListener('click', () => { bgImage = null; render(); });
+
+const cropModal = document.getElementById('cropModal');
+const cropCanvas = document.getElementById('cropCanvas');
+const cropCtx = cropCanvas.getContext('2d');
+const cropRatioRow = document.getElementById('cropRatioRow');
+const cropApplyBtn = document.getElementById('cropApplyBtn');
+const cropCancelBtn = document.getElementById('cropCancelBtn');
+const cropCloseBtn = document.getElementById('cropCloseBtn');
+
+let cropImg = null;
+let cropDisplayScale = 1;
+let cropRatio = null;
+let cropRect = { x: 0, y: 0, w: 0, h: 0 };
+let cropDragMode = null;
+let cropDragStart = { x: 0, y: 0 };
+let cropRectStart = { x: 0, y: 0, w: 0, h: 0 };
+const CROP_HANDLE = 16;
+
+function openCropModal(img) {
+    cropImg = img;
+    const maxW = Math.min(520, window.innerWidth - 64);
+    const maxH = Math.min(460, window.innerHeight * 0.55);
+    cropDisplayScale = Math.min(1, maxW / img.naturalWidth, maxH / img.naturalHeight);
+
+    cropCanvas.width = Math.round(img.naturalWidth * cropDisplayScale);
+    cropCanvas.height = Math.round(img.naturalHeight * cropDisplayScale);
+
+    cropRatioRow.querySelectorAll('.layer-chip').forEach(b => b.classList.toggle('active', b.dataset.ratio === 'free'));
+    cropRatio = null;
+
+    const w = cropCanvas.width * 0.8;
+    const h = cropCanvas.height * 0.8;
+    cropRect = { x: (cropCanvas.width - w) / 2, y: (cropCanvas.height - h) / 2, w, h };
+
+    drawCropCanvas();
+    cropModal.classList.add('open');
+}
+
+function closeCropModal() {
+    cropModal.classList.remove('open');
+    cropImg = null;
+}
+
+function fitRectToRatio(rect, ratio) {
+    const cx = rect.x + rect.w / 2;
+    const cy = rect.y + rect.h / 2;
+    let w = rect.w;
+    let h = w / ratio;
+    if (h > cropCanvas.height) { h = cropCanvas.height; w = h * ratio; }
+    if (w > cropCanvas.width) { w = cropCanvas.width; h = w / ratio; }
+    let x = cx - w / 2;
+    let y = cy - h / 2;
+    x = Math.max(0, Math.min(cropCanvas.width - w, x));
+    y = Math.max(0, Math.min(cropCanvas.height - h, y));
+    return { x, y, w, h };
+}
+
+function drawCropCanvas() {
+    if (!cropImg) return;
+    cropCtx.clearRect(0, 0, cropCanvas.width, cropCanvas.height);
+    cropCtx.drawImage(cropImg, 0, 0, cropCanvas.width, cropCanvas.height);
+
+    cropCtx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+    cropCtx.fillRect(0, 0, cropCanvas.width, cropRect.y);
+    cropCtx.fillRect(0, cropRect.y + cropRect.h, cropCanvas.width, cropCanvas.height - cropRect.y - cropRect.h);
+    cropCtx.fillRect(0, cropRect.y, cropRect.x, cropRect.h);
+    cropCtx.fillRect(cropRect.x + cropRect.w, cropRect.y, cropCanvas.width - cropRect.x - cropRect.w, cropRect.h);
+
+    cropCtx.strokeStyle = '#38bdf8';
+    cropCtx.lineWidth = 2;
+    cropCtx.strokeRect(cropRect.x, cropRect.y, cropRect.w, cropRect.h);
+
+    cropCtx.fillStyle = '#38bdf8';
+    [[cropRect.x, cropRect.y], [cropRect.x + cropRect.w, cropRect.y], [cropRect.x, cropRect.y + cropRect.h], [cropRect.x + cropRect.w, cropRect.y + cropRect.h]].forEach(([hx, hy]) => {
+        cropCtx.fillRect(hx - 6, hy - 6, 12, 12);
+    });
+}
+
+function cropCoords(e) {
+    const rect = cropCanvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const scale = cropCanvas.width / rect.width;
+    return { x: (clientX - rect.left) * scale, y: (clientY - rect.top) * scale };
+}
+
+function cropHandleAt(pt) {
+    const corners = {
+        nw: { x: cropRect.x, y: cropRect.y },
+        ne: { x: cropRect.x + cropRect.w, y: cropRect.y },
+        sw: { x: cropRect.x, y: cropRect.y + cropRect.h },
+        se: { x: cropRect.x + cropRect.w, y: cropRect.y + cropRect.h }
+    };
+    for (const key in corners) {
+        if (Math.hypot(pt.x - corners[key].x, pt.y - corners[key].y) < CROP_HANDLE) return key;
+    }
+    return null;
+}
+
+cropCanvas.addEventListener('mousedown', cropPointerDown);
+cropCanvas.addEventListener('touchstart', cropPointerDown, { passive: false });
+
+function cropPointerDown(e) {
+    const pt = cropCoords(e);
+    const handle = cropHandleAt(pt);
+
+    if (handle) {
+        cropDragMode = handle;
+    } else if (pt.x >= cropRect.x && pt.x <= cropRect.x + cropRect.w && pt.y >= cropRect.y && pt.y <= cropRect.y + cropRect.h) {
+        cropDragMode = 'move';
+    } else {
+        return;
+    }
+
+    cropDragStart = pt;
+    cropRectStart = { ...cropRect };
+    e.preventDefault();
+}
+
+window.addEventListener('mousemove', cropPointerMove);
+window.addEventListener('touchmove', cropPointerMove, { passive: false });
+
+function cropPointerMove(e) {
+    if (!cropDragMode || !cropImg) return;
+    const pt = cropCoords(e);
+    const dx = pt.x - cropDragStart.x;
+    const dy = pt.y - cropDragStart.y;
+
+    if (cropDragMode === 'move') {
+        cropRect.x = Math.max(0, Math.min(cropCanvas.width - cropRect.w, cropRectStart.x + dx));
+        cropRect.y = Math.max(0, Math.min(cropCanvas.height - cropRect.h, cropRectStart.y + dy));
+    } else {
+        let { x, y, w, h } = cropRectStart;
+        if (cropDragMode === 'se') { w = Math.max(30, w + dx); h = cropRatio ? w / cropRatio : Math.max(30, h + dy); }
+        if (cropDragMode === 'ne') { w = Math.max(30, w + dx); h = cropRatio ? w / cropRatio : Math.max(30, h - dy); y = cropRatio ? (y + cropRectStart.h - h) : y + dy; }
+        if (cropDragMode === 'sw') { w = Math.max(30, w - dx); h = cropRatio ? w / cropRatio : Math.max(30, h + dy); x = x + dx; }
+        if (cropDragMode === 'nw') { w = Math.max(30, w - dx); h = cropRatio ? w / cropRatio : Math.max(30, h - dy); x = x + dx; y = cropRatio ? (y + cropRectStart.h - h) : y + dy; }
+
+        x = Math.max(0, Math.min(cropCanvas.width - w, x));
+        y = Math.max(0, Math.min(cropCanvas.height - h, y));
+        w = Math.min(w, cropCanvas.width - x);
+        h = Math.min(h, cropCanvas.height - y);
+
+        cropRect = { x, y, w, h };
+    }
+
+    drawCropCanvas();
+    e.preventDefault();
+}
+
+window.addEventListener('mouseup', () => { cropDragMode = null; });
+window.addEventListener('touchend', () => { cropDragMode = null; });
+
+cropRatioRow.querySelectorAll('.layer-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+        cropRatioRow.querySelectorAll('.layer-chip').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        const val = btn.dataset.ratio;
+        if (val === 'free') {
+            cropRatio = null;
+        } else {
+            const [rw, rh] = val.split(':').map(Number);
+            cropRatio = rw / rh;
+            cropRect = fitRectToRatio(cropRect, cropRatio);
+        }
+        drawCropCanvas();
+    });
+});
+
+cropApplyBtn.addEventListener('click', () => {
+    if (!cropImg) return;
+    const factor = cropImg.naturalWidth / cropCanvas.width;
+    const sx = cropRect.x * factor;
+    const sy = cropRect.y * factor;
+    const sw = cropRect.w * factor;
+    const sh = cropRect.h * factor;
+
+    const out = document.createElement('canvas');
+    out.width = Math.round(sw);
+    out.height = Math.round(sh);
+    out.getContext('2d').drawImage(cropImg, sx, sy, sw, sh, 0, 0, out.width, out.height);
+
+    const result = new Image();
+    result.onload = () => { bgImage = result; render(); };
+    result.src = out.toDataURL('image/png');
+
+    closeCropModal();
+});
+
+cropCancelBtn.addEventListener('click', closeCropModal);
+cropCloseBtn.addEventListener('click', closeCropModal);
+cropModal.addEventListener('click', e => { if (e.target.id === 'cropModal') closeCropModal(); });
 
 function wordStyle(box) {
-    const list = PALETTES[box.palette] || PALETTES.mostlyWhite;
+    let list;
+    if (box.palette !== 'custom') {
+        list = box.mode === 'sticker' ? STICKER_PALETTE : (PALETTES[box.palette] || PALETTES.mostlyWhite);
+    }
     const palette = box.palette === 'custom'
         ? { bg: box.customBg, text: box.customText, border: box.customText }
         : list[Math.floor(Math.random() * list.length)];
 
-    const font = box.mix ? FONTS[Math.floor(Math.random() * FONTS.length)] : 'Impact';
+    const font = box.mode === 'sticker'
+        ? STICKER_FONTS[Math.floor(Math.random() * STICKER_FONTS.length)]
+        : (box.mix ? FONTS[Math.floor(Math.random() * FONTS.length)] : 'Impact');
     const rot = box.rotMax === 0 ? 0 : (Math.random() * box.rotMax * 2 - box.rotMax) * (Math.PI / 180);
 
     const useTexture = box.source === 'meme' ? true : box.source === 'mixed' ? Math.random() > 0.4 : false;
@@ -648,47 +1035,57 @@ function refreshWords(force) {
 function drawBadge(ctx, w, fontPx, ref, box) {
     const rx = -w.width / 2;
     const ry = -w.height / 2;
+    const radius = box.mode === 'sticker' ? Math.min(w.width, w.height) * 0.16 : 0;
 
-    if (box.shadow > 0) {
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
-        ctx.shadowBlur = box.shadow * ref;
-        ctx.shadowOffsetX = 2 * ref;
-        ctx.shadowOffsetY = 3 * ref;
-    } else {
+    if (box.showBox) {
+        if (box.shadow > 0) {
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+            ctx.shadowBlur = box.shadow * ref;
+            ctx.shadowOffsetX = 2 * ref;
+            ctx.shadowOffsetY = 3 * ref;
+        } else {
+            ctx.shadowColor = 'transparent';
+        }
+
+        ctx.fillStyle = w.style.useTexture ? '#ffffff' : w.style.palette.bg;
+        roundRectPath(ctx, rx, ry, w.width, w.height, radius);
+        ctx.fill();
         ctx.shadowColor = 'transparent';
+
+        ctx.save();
+        roundRectPath(ctx, rx, ry, w.width, w.height, radius);
+        ctx.clip();
+    } else {
+        ctx.save();
     }
-
-    ctx.fillStyle = w.style.useTexture ? '#ffffff' : w.style.palette.bg;
-    ctx.fillRect(rx, ry, w.width, w.height);
-    ctx.shadowColor = 'transparent';
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(rx, ry, w.width, w.height);
-    ctx.clip();
 
     const hi = document.createElement('canvas');
     hi.width = Math.max(1, Math.ceil(w.width));
     hi.height = Math.max(1, Math.ceil(w.height));
     const hctx = hi.getContext('2d');
 
-    if (w.style.useTexture && atlas && atlas.complete && atlas.width > 0) {
-        hctx.save();
-        if (w.style.flipX || w.style.flipY) {
-            hctx.translate(hi.width / 2, hi.height / 2);
-            hctx.scale(w.style.flipX ? -1 : 1, w.style.flipY ? -1 : 1);
-            hctx.translate(-hi.width / 2, -hi.height / 2);
+    if (box.showBox) {
+        if (w.style.useTexture && atlas && atlas.complete && atlas.width > 0) {
+            hctx.save();
+            if (w.style.flipX || w.style.flipY) {
+                hctx.translate(hi.width / 2, hi.height / 2);
+                hctx.scale(w.style.flipX ? -1 : 1, w.style.flipY ? -1 : 1);
+                hctx.translate(-hi.width / 2, -hi.height / 2);
+            }
+            hctx.imageSmoothingEnabled = true;
+            hctx.imageSmoothingQuality = 'high';
+            hctx.drawImage(atlas, w.style.cropX, w.style.cropY, w.style.cropW, w.style.cropH, 0, 0, hi.width, hi.height);
+            hctx.restore();
+        } else {
+            hctx.fillStyle = w.style.palette.bg;
+            hctx.fillRect(0, 0, hi.width, hi.height);
         }
-        hctx.imageSmoothingEnabled = true;
-        hctx.imageSmoothingQuality = 'high';
-        hctx.drawImage(atlas, w.style.cropX, w.style.cropY, w.style.cropW, w.style.cropH, 0, 0, hi.width, hi.height);
-        hctx.restore();
-    } else {
-        hctx.fillStyle = w.style.palette.bg;
-        hctx.fillRect(0, 0, hi.width, hi.height);
     }
 
-    const textColor = w.style.useTexture ? w.style.contrastText : w.style.palette.text;
+    const textColor = box.textColorMode === 'custom'
+        ? box.textColor
+        : (w.style.useTexture ? w.style.contrastText : w.style.palette.text);
+
     hctx.font = `bold ${fontPx}px "${w.style.font}", ${FONT_STACK}`;
     hctx.textAlign = 'center';
     hctx.textBaseline = 'middle';
@@ -696,9 +1093,21 @@ function drawBadge(ctx, w, fontPx, ref, box) {
     const tx = hi.width / 2 + w.style.textOffsetX * ref;
     const ty = hi.height / 2 + w.style.textOffsetY * ref + (1 * ref);
 
-    if (w.style.useTexture) {
-        hctx.strokeStyle = textColor === '#ffffff' ? '#000000' : '#ffffff';
-        hctx.lineWidth = Math.max(2, fontPx * 0.08);
+    if (box.mode === 'sticker') {
+        const ext = Math.max(2, fontPx * 0.1);
+        hctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+        hctx.fillText(w.out, tx + ext * 0.5, ty + ext * 0.7);
+    }
+
+    let strokeColor = null;
+    if (box.textColorMode === 'custom') {
+        strokeColor = box.textOutline === 'none' ? null : (box.textOutline === 'white' ? '#ffffff' : '#000000');
+    } else if (w.style.useTexture || box.mode === 'sticker') {
+        strokeColor = textColor === '#ffffff' ? '#000000' : '#ffffff';
+    }
+    if (strokeColor) {
+        hctx.strokeStyle = strokeColor;
+        hctx.lineWidth = Math.max(2, fontPx * (box.mode === 'sticker' ? 0.13 : 0.08));
         hctx.strokeText(w.out, tx, ty);
     }
     hctx.fillStyle = textColor;
@@ -720,22 +1129,32 @@ function drawBadge(ctx, w, fontPx, ref, box) {
     ctx.imageSmoothingEnabled = true;
     ctx.restore();
 
-    if (box.border > 0) {
-        ctx.strokeStyle = w.style.useTexture ? '#000000' : w.style.palette.border;
-        ctx.lineWidth = box.border * ref * box.scale;
-        ctx.strokeRect(rx, ry, w.width, w.height);
+    if (box.showBox) {
+        if (box.border > 0) {
+            ctx.strokeStyle = w.style.useTexture ? '#000000' : w.style.palette.border;
+            ctx.lineWidth = box.border * ref * box.scale;
+            roundRectPath(ctx, rx, ry, w.width, w.height, radius);
+            ctx.stroke();
+        } else if (box.mode === 'sticker') {
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = Math.max(2, 3 * ref * box.scale);
+            roundRectPath(ctx, rx, ry, w.width, w.height, radius);
+            ctx.stroke();
+        }
     }
 }
 
 function render() {
-    if (!bgImage) return;
-
-    canvas.width = bgImage.naturalWidth || bgImage.width || 800;
-    canvas.height = bgImage.naturalHeight || bgImage.height || 800;
+    canvas.width = bgImage ? (bgImage.naturalWidth || bgImage.width) : DEFAULT_W;
+    canvas.height = bgImage ? (bgImage.naturalHeight || bgImage.height) : DEFAULT_H;
     dimsLabel.textContent = `${canvas.width} × ${canvas.height} px`;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+    if (!canvasTransparent) {
+        ctx.fillStyle = canvasBgColor;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    if (bgImage) ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
 
     const ref = canvas.width / 750;
 
@@ -875,6 +1294,17 @@ function syncControls() {
     customColors.classList.toggle('hidden', box.palette !== 'custom');
     scrambleToggle.checked = box.scramble;
     mixToggle.checked = box.mix;
+
+    modeSelect.value = box.mode;
+    showBoxToggle.checked = box.showBox;
+    textColorModeSelect.value = box.textColorMode;
+    textColorCustom.classList.toggle('hidden', box.textColorMode !== 'custom');
+    textOutlineSelect.value = box.textOutline;
+    syncSwatchActive();
+
+    transparentToggle.checked = canvasTransparent;
+    canvasColorInput.value = canvasBgColor;
+    canvasColorRow.classList.toggle('hidden', canvasTransparent);
 }
 
 captionInput.addEventListener('input', e => {
@@ -1009,6 +1439,50 @@ mixToggle.addEventListener('change', e => {
     render();
 });
 
+modeSelect.addEventListener('change', e => {
+    boxes[active].mode = e.target.value;
+    refreshWords(true);
+    render();
+});
+
+showBoxToggle.addEventListener('change', e => {
+    boxes[active].showBox = e.target.checked;
+    render();
+});
+
+textColorModeSelect.addEventListener('change', e => {
+    boxes[active].textColorMode = e.target.value;
+    textColorCustom.classList.toggle('hidden', e.target.value !== 'custom');
+    render();
+});
+
+textHueInput.addEventListener('input', e => {
+    const hex = hslToHex(parseInt(e.target.value, 10), 75, 55);
+    huePreview.style.background = hex;
+    boxes[active].textColor = hex;
+    boxes[active].textColorMode = 'custom';
+    textColorModeSelect.value = 'custom';
+    textColorCustom.classList.remove('hidden');
+    syncSwatchActive();
+    render();
+});
+
+textOutlineSelect.addEventListener('change', e => {
+    boxes[active].textOutline = e.target.value;
+    render();
+});
+
+transparentToggle.addEventListener('change', e => {
+    canvasTransparent = e.target.checked;
+    canvasColorRow.classList.toggle('hidden', canvasTransparent);
+    render();
+});
+
+canvasColorInput.addEventListener('input', e => {
+    canvasBgColor = e.target.value;
+    render();
+});
+
 urlInput.addEventListener('change', e => {
     const url = e.target.value.trim();
     if (url) loadAtlas(url);
@@ -1032,7 +1506,9 @@ dupBtn.addEventListener('click', () => {
         scale: src.scale, fontSize: src.fontSize, source: src.source, crop: src.crop,
         border: src.border, shadow: src.shadow, palette: src.palette, customBg: src.customBg,
         customText: src.customText, scramble: src.scramble, mix: src.mix,
-        sizeJitter: src.sizeJitter, posJitter: src.posJitter, textJitter: src.textJitter, quality: src.quality
+        sizeJitter: src.sizeJitter, posJitter: src.posJitter, textJitter: src.textJitter, quality: src.quality,
+        mode: src.mode, showBox: src.showBox,
+        textColorMode: src.textColorMode, textColor: src.textColor, textOutline: src.textOutline
     });
     boxes.push(copy);
     active = boxes.length - 1;
