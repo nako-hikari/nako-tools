@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cutout Caption</title>
+<title>Ransom Meme Generator</title>
 <link rel="stylesheet" href="/css/nako.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Luckiest+Guy&family=Baloo+2:wght@700&family=Fredoka:wght@600&display=swap" rel="stylesheet">
 <style>
-.theme-toggle-row{ display:flex; justify-content:flex-end; margin-bottom:var(--space-md); }
+.panel-header .theme-toggle{ margin-left:auto; }
 .preview{ background:var(--input-bg); border:var(--border-width) solid var(--border-color); border-radius:var(--radius-lg); padding:var(--space-md); display:flex; align-items:center; justify-content:center; margin-top:var(--space-lg); }
 .preview canvas{ max-width:100%; height:auto; display:block; border-radius:var(--radius-md); cursor:grab; touch-action:none;
 background-image:linear-gradient(45deg, var(--border-color) 25%, transparent 25%), linear-gradient(-45deg, var(--border-color) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, var(--border-color) 75%), linear-gradient(-45deg, transparent 75%, var(--border-color) 75%);
@@ -38,7 +38,7 @@ background-size:16px 16px; background-position:0 0, 0 8px, 8px -8px, -8px 0; }
 .two-col{ display:grid; grid-template-columns:1fr 1fr; gap:var(--space-md); }
 .custom-colors{ margin-top:var(--space-md); }
 .custom-colors.hidden{ display:none; }
-.export-btn{ width:100%; margin-top:var(--space-xl); display:flex; align-items:center; justify-content:center; gap:var(--space-sm); }
+.export-btn{ width:100%; margin-top:var(--space-xl); display:flex; align-items:center; justify-content:center; gap:var(--space-sm); position:relative; overflow:hidden; }
 .hue-row{ display:flex; align-items:center; gap:var(--space-sm); }
 .hue-row input[type="range"]{ flex:1; }
 .hue-preview{ width:28px; height:28px; border-radius:var(--radius-sm); border:var(--border-width) solid var(--border-color); flex-shrink:0; }
@@ -54,19 +54,15 @@ background-size:16px 16px; background-position:0 0, 0 8px, 8px -8px, -8px 0; }
 <body>
 <div class="wrapper">
 
-<div class="theme-toggle-row">
-<button class="theme-toggle interactive" onclick="toggleTheme()" aria-label="Toggle theme">
-<img id="theme-icon" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/moon.png" alt="">
-</button>
-</div>
-
 <div class="card">
 <div class="panel-header">
 <div class="panel-header-icon"><img class="icon" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/voxel.png" alt=""></div>
 <div class="panel-header-text">
-<h1 class="panel-header-title">Cutout Caption</h1>
-<p class="panel-header-subtitle">Ransom-note style photo captions</p>
+<h1 class="panel-header-title">Ransom Meme Generator</h1>
 </div>
+<button class="theme-toggle interactive" onclick="toggleTheme()" aria-label="Toggle theme">
+<img id="theme-icon" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/moon.png" alt="">
+</button>
 </div>
 
 <div class="preview">
@@ -314,6 +310,21 @@ background-size:16px 16px; background-position:0 0, 0 8px, 8px -8px, -8px 0; }
 
 </div>
 
+<div class="settings-group">
+<span class="field-label">Export size</span>
+<select id="exportSizeSelect">
+<option value="360">360px</option>
+<option value="540">540px</option>
+<option value="720" selected>720px (default)</option>
+<option value="900">900px</option>
+<option value="1080">1080px</option>
+<option value="1350">1350px</option>
+<option value="1600">1600px</option>
+<option value="1800">1800px</option>
+<option value="2000">2000px</option>
+</select>
+</div>
+
 <button class="primary gradient export-btn" id="exportBtn">
 <img class="icon" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/file_download.png" alt="">
 Export PNG
@@ -372,8 +383,11 @@ Support me on Ko-fi
 <button type="button" class="layer-chip" data-ratio="1:1">1:1</button>
 <button type="button" class="layer-chip" data-ratio="4:5">4:5</button>
 <button type="button" class="layer-chip" data-ratio="3:4">3:4</button>
+<button type="button" class="layer-chip" data-ratio="4:3">4:3</button>
+<button type="button" class="layer-chip" data-ratio="3:2">3:2</button>
 <button type="button" class="layer-chip" data-ratio="16:9">16:9</button>
 <button type="button" class="layer-chip" data-ratio="9:16">9:16</button>
+<button type="button" class="layer-chip" data-ratio="21:9">21:9</button>
 </div>
 <div class="crop-stage">
 <canvas id="cropCanvas"></canvas>
@@ -467,7 +481,7 @@ const WORD_POOL = [
 ];
 
 function randomSample() {
-    const count = 6 + Math.floor(Math.random() * 6);
+    const count = 2 + Math.floor(Math.random() * 3);
     const lines = [];
     for (let i = 0; i < count; i++) {
         lines.push(WORD_POOL[Math.floor(Math.random() * WORD_POOL.length)]);
@@ -605,6 +619,7 @@ const textJitterInput = document.getElementById('textJitterInput');
 const qualityInput = document.getElementById('qualityInput');
 
 const exportBtn = document.getElementById('exportBtn');
+const exportSizeSelect = document.getElementById('exportSizeSelect');
 
 let bgImage = null;
 let atlas = null;
@@ -615,6 +630,7 @@ let dragOffX = 0;
 let dragOffY = 0;
 let canvasTransparent = true;
 let canvasBgColor = '#ffffff';
+let exportSize = 720;
 
 function newBox(text, x = 60, y = 60) {
     return {
@@ -713,7 +729,6 @@ function loadAtlas(url) {
     img.crossOrigin = 'anonymous';
     img.onload = () => {
         atlas = img;
-        refreshWords(true);
         render();
     };
     img.onerror = fallbackAtlas;
@@ -736,7 +751,7 @@ function fallbackAtlas() {
     }
 
     atlas = new Image();
-    atlas.onload = () => { refreshWords(true); render(); };
+    atlas.onload = () => { render(); };
     atlas.src = temp.toDataURL();
 }
 
@@ -948,47 +963,67 @@ cropCancelBtn.addEventListener('click', closeCropModal);
 cropCloseBtn.addEventListener('click', closeCropModal);
 cropModal.addEventListener('click', e => { if (e.target.id === 'cropModal') closeCropModal(); });
 
-function wordStyle(box) {
+function generateSeed() {
+    return {
+        fontPick: Math.random(),
+        paletteIndexPick: Math.random(),
+        useTexturePick: Math.random(),
+        flipXPick: Math.random(),
+        flipYPick: Math.random(),
+        darkPick: Math.random(),
+        cropXPick: Math.random(),
+        cropYPick: Math.random(),
+        cropWPick: Math.random(),
+        cropHPick: Math.random(),
+        rotPick: Math.random(),
+        sizeJitterXPick: Math.random(),
+        sizeJitterYPick: Math.random(),
+        offsetXPick: Math.random(),
+        offsetYPick: Math.random(),
+        gapMultPick: Math.random(),
+        textOffsetXPick: Math.random(),
+        textOffsetYPick: Math.random()
+    };
+}
+
+function resolveStyle(box, seed) {
     let list;
     if (box.palette !== 'custom') {
         list = box.mode === 'sticker' ? STICKER_PALETTE : (PALETTES[box.palette] || PALETTES.mostlyWhite);
     }
     const palette = box.palette === 'custom'
         ? { bg: box.customBg, text: box.customText, border: box.customText }
-        : list[Math.floor(Math.random() * list.length)];
+        : list[Math.floor(seed.paletteIndexPick * list.length) % list.length];
 
-    const font = box.mode === 'sticker'
-        ? STICKER_FONTS[Math.floor(Math.random() * STICKER_FONTS.length)]
-        : (box.mix ? FONTS[Math.floor(Math.random() * FONTS.length)] : 'Impact');
-    const rot = box.rotMax === 0 ? 0 : (Math.random() * box.rotMax * 2 - box.rotMax) * (Math.PI / 180);
+    const fontsList = box.mode === 'sticker' ? STICKER_FONTS : FONTS;
+    const font = box.mode !== 'sticker' && !box.mix ? 'Impact' : fontsList[Math.floor(seed.fontPick * fontsList.length) % fontsList.length];
+    const rot = box.rotMax === 0 ? 0 : (seed.rotPick * 2 - 1) * box.rotMax * (Math.PI / 180);
 
-    const useTexture = box.source === 'meme' ? true : box.source === 'mixed' ? Math.random() > 0.4 : false;
+    const useTexture = box.source === 'meme' ? true : box.source === 'mixed' ? seed.useTexturePick > 0.4 : false;
 
     let cropX = 0, cropY = 0, cropW = 60, cropH = 60;
     if (atlas && atlas.width > 0) {
         const size = box.crop || 60;
         const mx = Math.max(10, atlas.width - size);
         const my = Math.max(10, atlas.height - size);
-        cropX = Math.floor(Math.random() * mx);
-        cropY = Math.floor(Math.random() * my);
-        cropW = Math.floor(size + (Math.random() * 20 - 10));
-        cropH = Math.floor(size + (Math.random() * 20 - 10));
+        cropX = Math.floor(seed.cropXPick * mx);
+        cropY = Math.floor(seed.cropYPick * my);
+        cropW = Math.floor(size + (seed.cropWPick * 20 - 10));
+        cropH = Math.floor(size + (seed.cropHPick * 20 - 10));
     }
-
-    const dark = Math.random() > 0.5;
 
     return {
         palette, font, rot, useTexture, cropX, cropY, cropW, cropH,
-        contrastText: dark ? '#ffffff' : '#000000',
-        flipX: Math.random() > 0.5,
-        flipY: Math.random() > 0.8,
-        sizeJitterX: 1 + (Math.random() * 2 - 1) * (box.sizeJitter / 100),
-        sizeJitterY: 1 + (Math.random() * 2 - 1) * (box.sizeJitter / 100),
-        offsetX: (Math.random() * 2 - 1) * box.posJitter,
-        offsetY: (Math.random() * 2 - 1) * box.posJitter,
-        gapMult: 1 + (Math.random() * 2 - 1) * Math.min(0.6, box.posJitter / 10),
-        textOffsetX: (Math.random() * 2 - 1) * box.textJitter,
-        textOffsetY: (Math.random() * 2 - 1) * box.textJitter
+        contrastText: seed.darkPick > 0.5 ? '#ffffff' : '#000000',
+        flipX: seed.flipXPick > 0.5,
+        flipY: seed.flipYPick > 0.8,
+        sizeJitterX: 1 + (seed.sizeJitterXPick * 2 - 1) * (box.sizeJitter / 100),
+        sizeJitterY: 1 + (seed.sizeJitterYPick * 2 - 1) * (box.sizeJitter / 100),
+        offsetX: (seed.offsetXPick * 2 - 1) * box.posJitter,
+        offsetY: (seed.offsetYPick * 2 - 1) * box.posJitter,
+        gapMult: 1 + (seed.gapMultPick * 2 - 1) * Math.min(0.6, box.posJitter / 10),
+        textOffsetX: (seed.textOffsetXPick * 2 - 1) * box.textJitter,
+        textOffsetY: (seed.textOffsetYPick * 2 - 1) * box.textJitter
     };
 }
 
@@ -1006,30 +1041,27 @@ function refreshWords(force) {
 
     const lines = box.text.split('\n');
     const words = [];
-    const lineJitter = [];
+    const lineJitterSeed = [];
 
     lines.forEach((line, li) => {
-        const prevLJ = box.lineJitter && box.lineJitter[li];
-        lineJitter.push((prevLJ && !force) ? prevLJ : {
-            dx: (Math.random() * 2 - 1) * box.posJitter * 4,
-            dy: (Math.random() * 2 - 1) * box.posJitter * 1.5
+        const prevLJ = box.lineJitterSeed && box.lineJitterSeed[li];
+        lineJitterSeed.push((prevLJ && !force) ? prevLJ : {
+            dxPick: Math.random(),
+            dyPick: Math.random()
         });
 
         const row = [];
         line.trim().split(/\s+/).forEach((word, wi) => {
             if (!word) return;
             const prev = box.words[li] && box.words[li][wi];
-            if (prev && !force) {
-                row.push({ ...prev, out: formatCase(word, box.scramble) });
-            } else {
-                row.push({ text: word, out: formatCase(word, box.scramble), style: wordStyle(box) });
-            }
+            const seed = (prev && !force) ? prev.seed : generateSeed();
+            row.push({ text: word, out: formatCase(word, box.scramble), seed });
         });
         words.push(row);
     });
 
     box.words = words;
-    box.lineJitter = lineJitter;
+    box.lineJitterSeed = lineJitterSeed;
 }
 
 function drawBadge(ctx, w, fontPx, ref, box) {
@@ -1175,16 +1207,17 @@ function render() {
                 return;
             }
 
-            const lj = (box.lineJitter && box.lineJitter[li]) || { dx: 0, dy: 0 };
-            const lineStartX = lj.dx * ref;
-            const lineY = curY + lj.dy * ref;
+            const lj = (box.lineJitterSeed && box.lineJitterSeed[li]) || { dxPick: 0.5, dyPick: 0.5 };
+            const lineStartX = (lj.dxPick * 2 - 1) * box.posJitter * 4 * ref;
+            const lineY = curY + (lj.dyPick * 2 - 1) * box.posJitter * 1.5 * ref;
 
             const measured = row.map(w => {
-                ctx.font = `bold ${fontPx}px "${w.style.font}", ${FONT_STACK}`;
+                const style = resolveStyle(box, w.seed);
+                ctx.font = `bold ${fontPx}px "${style.font}", ${FONT_STACK}`;
                 const m = ctx.measureText(w.out);
                 const baseW = m.width + (box.padX * 2 * ref * box.scale);
                 const baseH = fontPx + (box.padY * 2 * ref * box.scale);
-                return { ...w, width: baseW * w.style.sizeJitterX, height: baseH * w.style.sizeJitterY };
+                return { ...w, style, width: baseW * style.sizeJitterX, height: baseH * style.sizeJitterY };
             });
 
             const gap = box.gap * ref * box.scale;
@@ -1305,6 +1338,7 @@ function syncControls() {
     transparentToggle.checked = canvasTransparent;
     canvasColorInput.value = canvasBgColor;
     canvasColorRow.classList.toggle('hidden', canvasTransparent);
+    exportSizeSelect.value = String(exportSize);
 }
 
 captionInput.addEventListener('input', e => {
@@ -1315,14 +1349,12 @@ captionInput.addEventListener('input', e => {
 
 sourceSelect.addEventListener('change', e => {
     boxes[active].source = e.target.value;
-    refreshWords(true);
     render();
 });
 
 cropInput.addEventListener('input', e => {
     boxes[active].crop = parseInt(e.target.value, 10);
     document.getElementById('cropVal').textContent = `${boxes[active].crop}px`;
-    refreshWords(true);
     render();
 });
 
@@ -1335,19 +1367,16 @@ contrastInput.addEventListener('input', e => {
 paletteSelect.addEventListener('change', e => {
     boxes[active].palette = e.target.value;
     customColors.classList.toggle('hidden', e.target.value !== 'custom');
-    refreshWords(true);
     render();
 });
 
 customBg.addEventListener('input', e => {
     boxes[active].customBg = e.target.value;
-    refreshWords(true);
     render();
 });
 
 customText.addEventListener('input', e => {
     boxes[active].customText = e.target.value;
-    refreshWords(true);
     render();
 });
 
@@ -1372,7 +1401,6 @@ fontSizeInput.addEventListener('input', e => {
 rotInput.addEventListener('input', e => {
     boxes[active].rotMax = parseInt(e.target.value, 10);
     document.getElementById('rotVal').textContent = `${boxes[active].rotMax}°`;
-    refreshWords(true);
     render();
 });
 
@@ -1403,21 +1431,18 @@ lineInput.addEventListener('input', e => {
 sizeJitterInput.addEventListener('input', e => {
     boxes[active].sizeJitter = parseInt(e.target.value, 10);
     document.getElementById('sizeJitterVal').textContent = `${boxes[active].sizeJitter}%`;
-    refreshWords(true);
     render();
 });
 
 posJitterInput.addEventListener('input', e => {
     boxes[active].posJitter = parseInt(e.target.value, 10);
     document.getElementById('posJitterVal').textContent = `${boxes[active].posJitter}px`;
-    refreshWords(true);
     render();
 });
 
 textJitterInput.addEventListener('input', e => {
     boxes[active].textJitter = parseInt(e.target.value, 10);
     document.getElementById('textJitterVal').textContent = `${boxes[active].textJitter}px`;
-    refreshWords(true);
     render();
 });
 
@@ -1435,13 +1460,11 @@ scrambleToggle.addEventListener('change', e => {
 
 mixToggle.addEventListener('change', e => {
     boxes[active].mix = e.target.checked;
-    refreshWords(true);
     render();
 });
 
 modeSelect.addEventListener('change', e => {
     boxes[active].mode = e.target.value;
-    refreshWords(true);
     render();
 });
 
@@ -1614,16 +1637,26 @@ function dragMove(e) {
 window.addEventListener('mouseup', () => { dragging = false; resizing = false; });
 window.addEventListener('touchend', () => { dragging = false; resizing = false; });
 
-exportBtn.addEventListener('click', () => {
-    const out = document.createElement('canvas');
-    out.width = canvas.width;
-    out.height = canvas.height;
-    const octx = out.getContext('2d');
+exportSizeSelect.addEventListener('change', e => {
+    exportSize = parseInt(e.target.value, 10);
+});
 
+exportBtn.addEventListener('click', () => {
     const prev = active;
     active = -1;
     render();
-    octx.drawImage(canvas, 0, 0);
+
+    const longest = Math.max(canvas.width, canvas.height);
+    const scale = exportSize / longest;
+
+    const out = document.createElement('canvas');
+    out.width = Math.round(canvas.width * scale);
+    out.height = Math.round(canvas.height * scale);
+    const octx = out.getContext('2d');
+    octx.imageSmoothingEnabled = true;
+    octx.imageSmoothingQuality = 'high';
+    octx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, out.width, out.height);
+
     active = prev;
     render();
 
