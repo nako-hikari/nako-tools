@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Standee &amp; Poster Cutter</title>
+<link rel="stylesheet" href="/css/nako.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<style>
+.tabs { flex-wrap: wrap; }
+.tab-panel { display: none; flex-direction: column; gap: var(--space-md); }
+.tab-panel.active { display: flex; }
+.field-row { display: flex; justify-content: space-between; align-items: center; gap: var(--space-md); }
+.field-row > .field-label { flex: 1; margin: 0; }
+.field-row > input[type="text"], .field-row > input[type="number"], .field-row > select { flex: 1; }
+.cluster-label { font-size: var(--fs-sm); text-transform: uppercase; letter-spacing: var(--ls-wide); color: var(--accent-light); margin-top: var(--space-sm); }
+.toggle-row { display: flex; justify-content: space-between; align-items: center; gap: var(--space-md); }
+.toggle-row .toggle-text { display: flex; flex-direction: column; gap: 2px; }
+.toggle-row .toggle-desc { font-size: var(--fs-xs); color: var(--text-muted); }
+.range-row .range-head { display: flex; justify-content: space-between; align-items: center; }
+.range-row .range-value { color: var(--accent-light); font-weight: var(--fw-semibold); font-size: var(--fs-sm); }
+.hint { display: flex; align-items: flex-start; gap: var(--space-sm); font-size: var(--fs-xs); color: var(--text-muted); background: var(--box-bg); border: var(--border-width) solid var(--border-color); border-radius: var(--radius-md); padding: var(--space-sm) var(--space-md); }
+.hint img { flex-shrink: 0; margin-top: 2px; }
+.status-bar { display: flex; flex-wrap: wrap; gap: var(--space-lg); font-size: var(--fs-sm); color: var(--text-muted); border-top: var(--border-width) solid var(--border-color); padding-top: var(--space-md); margin-top: var(--space-md); }
+.status-bar b { color: var(--accent-light); }
+.preview-wrap { display: flex; flex-wrap: wrap; gap: var(--space-lg); justify-content: center; padding-top: var(--space-md); }
+.preview-bg-row { display: flex; justify-content: space-between; align-items: center; gap: var(--space-md); padding-top: var(--space-sm); }
+.preview-bg-row .field-label { margin: 0; }
+.preview-bg-row select { width: auto; min-width: 200px; }
+.thumb { position: relative; border-radius: var(--radius-sm); box-shadow: var(--shadow-soft); overflow: hidden; }
+#sheetGrid[data-bg="white"] .thumb { background: #ffffff; }
+#sheetGrid[data-bg="black"] .thumb { background: #000000; }
+#sheetGrid[data-bg="gray"] .thumb { background: #9ca3af; }
+#sheetGrid[data-bg="darkgray"] .thumb { background: #374151; }
+#sheetGrid[data-bg="blue"] .thumb { background: #2563eb; }
+#sheetGrid[data-bg="green"] .thumb { background: #16a34a; }
+#sheetGrid[data-bg="checker"] .thumb {
+    background-color: #ffffff;
+    background-image: linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+}
+.thumb canvas { display: block; width: 100%; height: 100%; }
+.thumb .thumb-tag { position: absolute; bottom: 4px; left: 4px; background: rgba(0,0,0,.72); color: #fff; font-size: 10px; padding: 2px 6px; border-radius: var(--radius-sm); z-index: 2; }
+.thumb .thumb-check { position: absolute; top: 4px; left: 4px; z-index: 2; margin: 0; width: 18px; height: 18px; }
+.thumb .thumb-dl { position: absolute; top: 4px; right: 4px; z-index: 2; width: 22px; height: 22px; padding: 3px; background: rgba(0,0,0,.55); border-radius: var(--radius-sm); }
+.thumb.unselected canvas { opacity: 0.35; }
+.margin-guide { position: absolute; border: 1px dashed #ef4444; box-sizing: border-box; pointer-events: none; z-index: 1; }
+.empty-state { color: var(--text-muted); font-size: var(--fs-sm); text-align: center; padding: var(--space-2xl) 0; }
+.export-actions { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
+.export-actions button { flex: 1; }
+</style>
+</head>
+<body>
+<div class="wrapper">
+    <div class="card" id="app">
+        <div class="panel-header">
+            <div class="panel-header-icon"><img class="icon" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/voxel.png" alt=""></div>
+            <div class="panel-header-text">
+                <h2 class="panel-header-title">Standee &amp; Poster Cutter</h2>
+                <p class="panel-header-subtitle">Slice life-size art into printable pages</p>
+            </div>
+            <button class="theme-toggle interactive" onclick="toggleTheme()" aria-label="Toggle theme">
+                <img id="theme-icon" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/moon.png" alt="">
+            </button>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" data-tab="image">Image</button>
+            <button class="tab" data-tab="layout">Layout</button>
+            <button class="tab" data-tab="paper">Paper</button>
+            <button class="tab" data-tab="base">Base &amp; Outline</button>
+            <button class="tab" data-tab="guides">Guides</button>
+            <button class="tab" data-tab="export">Export</button>
+        </div>
+
+        <div id="panel-image" class="tab-panel active">
+            <div class="btn-file" style="position:relative;">
+                <button class="secondary interactive" style="width:100%;" type="button">Choose Poster / Character Image</button>
+                <input type="file" id="imageInput" accept="image/*" style="position:absolute;inset:0;opacity:0;cursor:pointer;">
+            </div>
+            <div class="field-row"><span class="field-label">File</span><span id="fileNameDisp" style="color:var(--text-muted);font-size:var(--fs-sm);">No image loaded</span></div>
+            <div class="field-row"><span class="field-label">Dimensions</span><span id="imgDimsDisp" style="color:var(--text-muted);font-size:var(--fs-sm);">—</span></div>
+            <button class="danger interactive" id="removeImageBtn" type="button">Remove Image</button>
+        </div>
+
+        <div id="panel-layout" class="tab-panel">
+            <div>
+                <label class="field-label">Slicing Strategy</label>
+                <select id="slicingMode">
+                    <option value="grid">Grid Split (fixed columns x rows)</option>
+                    <option value="height">Target Standee Height (life size)</option>
+                </select>
+            </div>
+            <div id="gridControls" class="row">
+                <div><label class="field-label">Columns</label><input type="number" id="colsInput" value="2" min="1" max="20"></div>
+                <div><label class="field-label">Rows</label><input type="number" id="rowsInput" value="2" min="1" max="20"></div>
+            </div>
+            <div id="heightControls" style="display:none;">
+                <label class="field-label">Target Height (cm)</label>
+                <input type="number" id="targetHeightCm" value="140" min="10" step="1">
+            </div>
+            <div class="toggle-row" id="lockAspectRow">
+                <div class="toggle-text">
+                    <span class="field-label">Prevent Stretch</span>
+                    <span class="toggle-desc">Keep the image's real proportions instead of forcing it to fill the grid</span>
+                </div>
+                <label class="toggle-switch"><input type="checkbox" id="lockAspect" checked><span class="slider"></span></label>
+            </div>
+            <div class="hint" id="lockAspectHint">
+                <img class="icon icon-sm" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/info.png" alt="">
+                <span>With this on, an image that doesn't match your grid's proportions gets centered with blank space around it instead of being distorted. Height mode never stretches, regardless of this setting.</span>
+            </div>
+        </div>
+
+        <div id="panel-paper" class="tab-panel">
+            <div>
+                <label class="field-label">Paper Size Preset</label>
+                <select id="paperPreset">
+                    <option value="210,297">A4 (21 x 29.7 cm)</option>
+                    <option value="297,420">A3 (29.7 x 42 cm)</option>
+                    <option value="420,594">A2 (42 x 59.4 cm)</option>
+                    <option value="594,841">A1 (59.4 x 84.1 cm)</option>
+                    <option value="841,1189">A0 (84.1 x 118.9 cm)</option>
+                    <option value="148,210">A5 (14.8 x 21 cm)</option>
+                    <option value="216,279">Letter (21.6 x 27.9 cm)</option>
+                    <option value="216,356">Legal (21.6 x 35.6 cm)</option>
+                    <option value="279,432">Tabloid / Ledger (27.9 x 43.2 cm)</option>
+                    <option value="300,300" selected>Square 30cm (30 x 30 cm)</option>
+                    <option value="custom">-- Custom Paper Size --</option>
+                </select>
+            </div>
+            <div id="customPaperDimensions" class="row" style="display:none;">
+                <div><label class="field-label">Custom Width (cm)</label><input type="number" id="customWidthCm" value="25" min="5" step="0.5"></div>
+                <div><label class="field-label">Custom Height (cm)</label><input type="number" id="customHeightCm" value="25" min="5" step="0.5"></div>
+            </div>
+            <div class="row">
+                <div><label class="field-label">Orientation</label>
+                    <select id="orientation"><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select>
+                </div>
+                <div><label class="field-label">Margin (cm)</label><input type="number" id="marginCm" value="1" min="0" step="0.1"></div>
+            </div>
+            <div class="toggle-row">
+                <div class="toggle-text">
+                    <span class="field-label">Bake Margin Into Exported Image</span>
+                    <span class="toggle-desc">Off by default — the margin is only used to work out how much fits on each sheet</span>
+                </div>
+                <label class="toggle-switch"><input type="checkbox" id="bakeMargin"><span class="slider"></span></label>
+            </div>
+            <div class="hint">
+                <img class="icon icon-sm" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/info.png" alt="">
+                <span>Most printers already reserve their own margin. Leave this off and each exported page is exactly the printable area — turn it on only if your printer needs the blank border baked into the file itself.</span>
+            </div>
+            <div class="cluster-label">Blank Space Fill</div>
+            <div class="toggle-row">
+                <div class="toggle-text"><span class="field-label">Fill Blank Areas</span><span class="toggle-desc">Otherwise blank space (padding, unbaked margin) stays transparent</span></div>
+                <label class="toggle-switch"><input type="checkbox" id="fillBlank"><span class="slider"></span></label>
+            </div>
+            <div><label class="field-label">Fill Color</label><input type="color" id="bgColor" value="#ffffff"></div>
+        </div>
+
+        <div id="panel-base" class="tab-panel">
+            <div class="cluster-label">Bottom Base Support Flap</div>
+            <div>
+                <label class="field-label">Base Shape</label>
+                <select id="baseShape">
+                    <option value="none">None (plain cutout)</option>
+                    <option value="triangle" selected>Triangle Base</option>
+                    <option value="trapezoid">Trapezoid Base</option>
+                    <option value="rounded">Rounded Arch Base</option>
+                </select>
+            </div>
+            <div class="row">
+                <div><label class="field-label">Width (cm)</label><input type="number" id="baseWidthCm" value="15" min="1" step="0.5"></div>
+                <div><label class="field-label">Height (cm)</label><input type="number" id="baseHeightCm" value="6" min="1" step="0.5"></div>
+            </div>
+            <div class="row">
+                <div><label class="field-label">Offset X (cm)</label><input type="number" id="baseOffsetCm" value="0" step="0.5"></div>
+                <div><label class="field-label">Color</label><input type="color" id="baseColor" value="#334155"></div>
+            </div>
+
+            <div class="cluster-label">White Outline</div>
+            <div class="toggle-row">
+                <div class="toggle-text"><span class="field-label">Enable White Outline</span></div>
+                <label class="toggle-switch"><input type="checkbox" id="whiteEnabled" checked><span class="slider"></span></label>
+            </div>
+            <div class="range-row"><div class="range-head"><label class="field-label">Thickness</label><span class="range-value" id="whiteMmVal">6mm</span></div>
+                <input type="range" id="whiteMm" min="0" max="25" step="0.5" value="6"></div>
+            <div><label class="field-label">Color</label><input type="color" id="whiteColor" value="#ffffff"></div>
+
+            <div class="cluster-label">Black Edge</div>
+            <div class="toggle-row">
+                <div class="toggle-text"><span class="field-label">Enable Black Edge</span></div>
+                <label class="toggle-switch"><input type="checkbox" id="blackEnabled"><span class="slider"></span></label>
+            </div>
+            <div class="range-row"><div class="range-head"><label class="field-label">Thickness</label><span class="range-value" id="blackMmVal">1.5mm</span></div>
+                <input type="range" id="blackMm" min="0" max="10" step="0.5" value="1.5"></div>
+            <div><label class="field-label">Color</label><input type="color" id="blackColor" value="#000000"></div>
+        </div>
+
+        <div id="panel-guides" class="tab-panel">
+            <div>
+                <label class="field-label">Number Sheets Starting From</label>
+                <select id="numberingCorner">
+                    <option value="top-left" selected>Top-Left</option>
+                    <option value="top-right">Top-Right</option>
+                    <option value="bottom-left">Bottom-Left</option>
+                    <option value="bottom-right">Bottom-Right</option>
+                </select>
+            </div>
+            <div class="toggle-row">
+                <div class="toggle-text"><span class="field-label">Show Trim Marks</span><span class="toggle-desc">Small corner ticks marking where the margin ends, burned into the export</span></div>
+                <label class="toggle-switch"><input type="checkbox" id="trimMarks"><span class="slider"></span></label>
+            </div>
+            <div class="hint" id="trimMarksHint">
+                <img class="icon icon-sm" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/info.png" alt="">
+                <span>Only useful when the margin is baked into the export — turn that on first, in the Paper tab.</span>
+            </div>
+            <div class="toggle-row">
+                <div class="toggle-text"><span class="field-label">Include Assembly Map</span><span class="toggle-desc">Adds a numbered layout diagram to the zip so pages are easy to tape together</span></div>
+                <label class="toggle-switch"><input type="checkbox" id="assemblyMap" checked><span class="slider"></span></label>
+            </div>
+        </div>
+
+        <div id="panel-export" class="tab-panel">
+            <div>
+                <label class="field-label">Export Resolution</label>
+                <select id="exportScale">
+                    <option value="1">Standard (72 DPI - fast)</option>
+                    <option value="2" selected>HD (144 DPI - recommended)</option>
+                    <option value="3">Ultra HD (216 DPI - high quality)</option>
+                </select>
+            </div>
+            <div>
+                <label class="field-label">Zip File Name</label>
+                <input type="text" id="zipName" value="standee_poster_cutouts">
+            </div>
+            <div>
+                <label class="field-label">Image File Name Pattern</label>
+                <input type="text" id="fileNamePattern" value="cutout_r{row}_c{col}.png">
+            </div>
+            <div class="hint">
+                <img class="icon icon-sm" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/info.png" alt="">
+                <span>Use {row}, {col} and {index} anywhere in the pattern — they get replaced per page.</span>
+            </div>
+            <div class="cluster-label">Page Selection</div>
+            <div class="export-actions">
+                <button class="secondary interactive" id="selectAllBtn" type="button">Select All</button>
+                <button class="secondary interactive" id="selectNoneBtn" type="button">Select None</button>
+            </div>
+            <div class="field-row"><span class="field-label">Selected</span><span id="selectedCountDisp" style="color:var(--accent-light);">0 / 0</span></div>
+            <button class="primary gradient interactive" id="exportBtn" type="button">
+                <img class="icon icon-on-brand" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/file_download.png" alt="">
+                Download Selected as Zip
+            </button>
+            <button class="danger interactive" id="resetBtn" type="button">Reset to Defaults</button>
+        </div>
+
+        <div class="status-bar">
+            <div>Printable/Sheet: <b id="usableDimDisp">0 x 0 cm</b></div>
+            <div>Sheets: <b id="totalPagesDisp">0</b></div>
+            <div>Finished Size: <b id="totalDimDisp">0 x 0 cm</b></div>
+        </div>
+        <div class="preview-bg-row">
+            <span class="field-label">Preview Background</span>
+            <select id="previewBg">
+                <option value="white" selected>White</option>
+                <option value="black">Black</option>
+                <option value="gray">Gray</option>
+                <option value="darkgray">Dark Gray</option>
+                <option value="blue">Blue</option>
+                <option value="green">Green</option>
+                <option value="checker">Transparent (Checkerboard)</option>
+            </select>
+        </div>
+        <div class="preview-wrap" id="sheetGrid" data-bg="white">
+            <div class="empty-state" id="emptyState">Upload an image to see the cut layout</div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <div class="footer-title">Nako Hikari</div>
+        <div class="footer-links">
+            <a href="https://github.com/nako-hikari/" target="_blank" class="social">
+                <img src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/github.png" alt="GitHub">
+                GitHub
+            </a>
+            <a href="https://m.youtube.com/@NaCryst" target="_blank" class="social">
+                <img src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/youtube.png" alt="YouTube">
+                YouTube
+            </a>
+            <a href="https://www.tiktok.com/@nako_hikari_mc" target="_blank" class="social">
+                <img src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/tiktok.png" alt="TikTok">
+                TikTok
+            </a>
+            <a href="https://ko-fi.com/arialicee" target="_blank" class="social kofi">
+                <img src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/kofi.png" alt="Ko-fi">
+                Support me on Ko-fi
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="nakoModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h2 class="modal-title" id="nakoModalTitle"></h2>
+            <button class="modal-close interactive" onclick="closeNakoModal()" aria-label="Close">
+                <img class="icon" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/close.png" alt="">
+            </button>
+        </div>
+        <div class="modal-body" id="nakoModalBody"></div>
+        <div class="modal-footer" id="nakoModalFooter"></div>
+    </div>
+</div>
+
+<script>
+function toggleTheme() {
+    const root = document.documentElement;
+    const btn = document.querySelector('.theme-toggle');
+    const icon = document.getElementById('theme-icon');
+    const goingLight = root.getAttribute('data-theme') !== 'light';
+    btn.classList.add('spinning');
+    setTimeout(() => btn.classList.remove('spinning'), 400);
+    if (goingLight) {
+        root.setAttribute('data-theme', 'light');
+        icon.src = 'https://raw.githubusercontent.com/nako-hikari/assets/main/ui/sun.png';
+        localStorage.setItem('nako-theme', 'light');
+    } else {
+        root.removeAttribute('data-theme');
+        icon.src = 'https://raw.githubusercontent.com/nako-hikari/assets/main/ui/moon.png';
+        localStorage.setItem('nako-theme', 'dark');
+    }
+}
+(function() {
+    if (localStorage.getItem('nako-theme') === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
+        document.getElementById('theme-icon').src = 'https://raw.githubusercontent.com/nako-hikari/assets/main/ui/sun.png';
+    }
+})();
+
+function showModal(title, message, options) {
+    options = options || {};
+    document.getElementById('nakoModalTitle').textContent = title;
+    document.getElementById('nakoModalBody').textContent = message;
+    const footer = document.getElementById('nakoModalFooter');
+    footer.innerHTML = '';
+    if (options.onConfirm) {
+        const cancel = document.createElement('button');
+        cancel.className = 'secondary interactive';
+        cancel.textContent = options.cancelText || 'Cancel';
+        cancel.onclick = closeNakoModal;
+        footer.appendChild(cancel);
+        const confirmBtn = document.createElement('button');
+        confirmBtn.className = options.danger ? 'danger interactive' : 'primary interactive';
+        confirmBtn.textContent = options.confirmText || (options.danger ? 'Reset' : 'Confirm');
+        confirmBtn.onclick = () => { closeNakoModal(); options.onConfirm(); };
+        footer.appendChild(confirmBtn);
+    } else {
+        const ok = document.createElement('button');
+        ok.className = 'secondary interactive';
+        ok.textContent = 'OK';
+        ok.onclick = closeNakoModal;
+        footer.appendChild(ok);
+    }
+    document.getElementById('nakoModal').classList.add('open');
+}
+function closeNakoModal() { document.getElementById('nakoModal').classList.remove('open'); }
+document.getElementById('nakoModal').addEventListener('click', e => { if (e.target.id === 'nakoModal') closeNakoModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeNakoModal(); });
+window.alert = msg => showModal('Notice', String(msg));
+
+document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+    });
+});
+
+const imageInput = document.getElementById('imageInput');
+const fileNameDisp = document.getElementById('fileNameDisp');
+const imgDimsDisp = document.getElementById('imgDimsDisp');
+const removeImageBtn = document.getElementById('removeImageBtn');
+
+const slicingModeInput = document.getElementById('slicingMode');
+const colsInput = document.getElementById('colsInput');
+const rowsInput = document.getElementById('rowsInput');
+const targetHeightCmInput = document.getElementById('targetHeightCm');
+const gridControls = document.getElementById('gridControls');
+const heightControls = document.getElementById('heightControls');
+const lockAspectInput = document.getElementById('lockAspect');
+const lockAspectRow = document.getElementById('lockAspectRow');
+const lockAspectHint = document.getElementById('lockAspectHint');
+
+const paperPresetInput = document.getElementById('paperPreset');
+const customPaperDimensions = document.getElementById('customPaperDimensions');
+const customWidthCmInput = document.getElementById('customWidthCm');
+const customHeightCmInput = document.getElementById('customHeightCm');
+const marginCmInput = document.getElementById('marginCm');
+const orientationInput = document.getElementById('orientation');
+const bakeMarginInput = document.getElementById('bakeMargin');
+const fillBlankInput = document.getElementById('fillBlank');
+const bgColorInput = document.getElementById('bgColor');
+
+const baseShapeInput = document.getElementById('baseShape');
+const baseWidthCmInput = document.getElementById('baseWidthCm');
+const baseHeightCmInput = document.getElementById('baseHeightCm');
+const baseOffsetCmInput = document.getElementById('baseOffsetCm');
+const baseColorInput = document.getElementById('baseColor');
+
+const whiteEnabledInput = document.getElementById('whiteEnabled');
+const whiteMmInput = document.getElementById('whiteMm');
+const whiteMmVal = document.getElementById('whiteMmVal');
+const whiteColorInput = document.getElementById('whiteColor');
+const blackEnabledInput = document.getElementById('blackEnabled');
+const blackMmInput = document.getElementById('blackMm');
+const blackMmVal = document.getElementById('blackMmVal');
+const blackColorInput = document.getElementById('blackColor');
+
+const numberingCornerInput = document.getElementById('numberingCorner');
+const trimMarksInput = document.getElementById('trimMarks');
+const trimMarksHint = document.getElementById('trimMarksHint');
+const assemblyMapInput = document.getElementById('assemblyMap');
+
+const exportScaleInput = document.getElementById('exportScale');
+const zipNameInput = document.getElementById('zipName');
+const fileNamePatternInput = document.getElementById('fileNamePattern');
+const selectAllBtn = document.getElementById('selectAllBtn');
+const selectNoneBtn = document.getElementById('selectNoneBtn');
+const selectedCountDisp = document.getElementById('selectedCountDisp');
+const exportBtn = document.getElementById('exportBtn');
+const resetBtn = document.getElementById('resetBtn');
+
+const usableDimDisp = document.getElementById('usableDimDisp');
+const totalPagesDisp = document.getElementById('totalPagesDisp');
+const totalDimDisp = document.getElementById('totalDimDisp');
+const sheetGrid = document.getElementById('sheetGrid');
+const emptyState = document.getElementById('emptyState');
+const previewBgInput = document.getElementById('previewBg');
+
+let rawImage = null;
+let selected = new Set();
+let lastLayout = null;
+let thumbEls = {};
+let lastShapeKey = null;
+
+function debounce(fn, ms) {
+    let t;
+    return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+
+previewBgInput.addEventListener('change', () => { sheetGrid.dataset.bg = previewBgInput.value; });
+
+imageInput.addEventListener('change', handleImageUpload);
+removeImageBtn.addEventListener('click', () => {
+    rawImage = null;
+    thumbEls = {};
+    lastShapeKey = null;
+    fileNameDisp.textContent = 'No image loaded';
+    imgDimsDisp.textContent = '—';
+    sheetGrid.innerHTML = '';
+    sheetGrid.appendChild(emptyState);
+    usableDimDisp.textContent = '0 x 0 cm';
+    totalPagesDisp.textContent = '0';
+    totalDimDisp.textContent = '0 x 0 cm';
+    selectedCountDisp.textContent = '0 / 0';
+});
+
+const renderPreviewDebounced = debounce(renderPreview, 180);
+
+slicingModeInput.addEventListener('change', () => {
+    const isGrid = slicingModeInput.value === 'grid';
+    gridControls.style.display = isGrid ? 'flex' : 'none';
+    heightControls.style.display = isGrid ? 'none' : 'block';
+    lockAspectRow.style.opacity = isGrid ? '1' : '0.5';
+    lockAspectInput.disabled = !isGrid;
+    lockAspectHint.style.display = isGrid ? 'flex' : 'none';
+    renderPreviewDebounced();
+});
+
+paperPresetInput.addEventListener('change', () => {
+    customPaperDimensions.style.display = paperPresetInput.value === 'custom' ? 'flex' : 'none';
+    renderPreviewDebounced();
+});
+
+bakeMarginInput.addEventListener('change', () => {
+    trimMarksHint.style.display = bakeMarginInput.checked ? 'none' : 'flex';
+    if (!bakeMarginInput.checked) trimMarksInput.checked = false;
+    renderPreviewDebounced();
+});
+
+whiteMmInput.addEventListener('input', () => { whiteMmVal.textContent = whiteMmInput.value + 'mm'; renderPreviewDebounced(); });
+blackMmInput.addEventListener('input', () => { blackMmVal.textContent = blackMmInput.value + 'mm'; renderPreviewDebounced(); });
+
+[
+    colsInput, rowsInput, targetHeightCmInput, lockAspectInput, customWidthCmInput, customHeightCmInput,
+    marginCmInput, orientationInput, fillBlankInput, bgColorInput, baseShapeInput, baseWidthCmInput,
+    baseHeightCmInput, baseOffsetCmInput, baseColorInput, whiteEnabledInput, whiteColorInput,
+    blackEnabledInput, blackColorInput, numberingCornerInput, trimMarksInput
+].forEach(el => el.addEventListener('input', renderPreviewDebounced));
+
+selectAllBtn.addEventListener('click', () => { if (lastLayout) { for (let r = 0; r < lastLayout.rows; r++) for (let c = 0; c < lastLayout.cols; c++) selected.add(r + '-' + c); refreshSelectionUI(); } });
+selectNoneBtn.addEventListener('click', () => { selected.clear(); refreshSelectionUI(); });
+resetBtn.addEventListener('click', () => {
+    showModal('Reset to Defaults', 'This clears every setting back to the tool\'s defaults. The loaded image stays.', {
+        danger: true, confirmText: 'Reset', onConfirm: resetDefaults
+    });
+});
+exportBtn.addEventListener('click', exportZip);
+
+function handleImageUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    fileNameDisp.textContent = file.name;
+    const reader = new FileReader();
+    reader.onload = event => {
+        const img = new Image();
+        img.onload = () => {
+            rawImage = img;
+            imgDimsDisp.textContent = img.width + ' x ' + img.height + ' px';
+            renderPreview();
+        };
+        img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+function getPaperDimensionsCm() {
+    let width, height;
+    if (paperPresetInput.value === 'custom') {
+        width = parseFloat(customWidthCmInput.value) || 20;
+        height = parseFloat(customHeightCmInput.value) || 20;
+    } else {
+        const [w, h] = paperPresetInput.value.split(',').map(v => parseFloat(v) / 10);
+        width = w; height = h;
+    }
+    const isLandscape = orientationInput.value === 'landscape';
+    return {
+        width: isLandscape ? Math.max(width, height) : Math.min(width, height),
+        height: isLandscape ? Math.min(width, height) : Math.max(width, height)
+    };
+}
+
+function getOutlineSpecs() {
+    return {
+        white: { enabled: whiteEnabledInput.checked, mm: parseFloat(whiteMmInput.value) || 0, color: whiteColorInput.value },
+        black: { enabled: blackEnabledInput.checked, mm: parseFloat(blackMmInput.value) || 0, color: blackColorInput.value }
+    };
+}
+
+function computeLayout(paper) {
+    const marginCm = parseFloat(marginCmInput.value) || 0;
+    const usableW = Math.max(0.1, paper.width - marginCm * 2);
+    const usableH = Math.max(0.1, paper.height - marginCm * 2);
+    const outline = getOutlineSpecs();
+    const oneSideCm = ((outline.white.enabled ? outline.white.mm : 0) + (outline.black.enabled ? outline.black.mm : 0)) / 10;
+    const outlineTotalCm = oneSideCm * 2;
+    const imgAspect = rawImage.width / rawImage.height;
+    const isGrid = slicingModeInput.value === 'grid';
+
+    let cols, rows, boxW, boxH, contentW, contentH, offsetX = 0, offsetY = 0;
+
+    if (isGrid) {
+        cols = Math.max(1, parseInt(colsInput.value) || 1);
+        rows = Math.max(1, parseInt(rowsInput.value) || 1);
+        boxW = cols * usableW;
+        boxH = rows * usableH;
+        if (lockAspectInput.checked) {
+            contentH = boxH; contentW = contentH * imgAspect;
+            if (contentW > boxW) { contentW = boxW; contentH = contentW / imgAspect; }
+            offsetX = (boxW - contentW) / 2;
+            offsetY = (boxH - contentH) / 2;
+        } else {
+            contentW = boxW; contentH = boxH;
+        }
+    } else {
+        contentH = (parseFloat(targetHeightCmInput.value) || 100) + outlineTotalCm;
+        contentW = contentH * imgAspect;
+        cols = Math.max(1, Math.ceil(contentW / usableW));
+        rows = Math.max(1, Math.ceil(contentH / usableH));
+        boxW = cols * usableW;
+        boxH = rows * usableH;
+    }
+
+    return { paper, marginCm, usableW, usableH, outline, oneSideCm, cols, rows, boxW, boxH, contentW, contentH, offsetX, offsetY };
+}
+
+function pageLabel(r, c, layout) {
+    const corner = numberingCornerInput.value;
+    let rr = r + 1, cc = c + 1;
+    if (corner === 'top-right' || corner === 'bottom-right') cc = layout.cols - c;
+    if (corner === 'bottom-left' || corner === 'bottom-right') rr = layout.rows - r;
+    return { row: rr, col: cc };
+}
+
+function buildFileName(pattern, row, col, index) {
+    return pattern.replaceAll('{row}', row).replaceAll('{col}', col).replaceAll('{index}', index)
+        .replace(/[<>:"/\\|?*]/g, '_') || ('cutout_' + index + '.png');
+}
+
+function drawOutline(ctx, img, x, y, w, h, thicknessPx, color) {
+    if (thicknessPx <= 0) return;
+    const steps = 16;
+    ctx.save();
+    for (let t = 1; t <= thicknessPx; t += 0.5) {
+        for (let i = 0; i < steps; i++) {
+            const angle = (i / steps) * Math.PI * 2;
+            ctx.drawImage(img, x + Math.cos(angle) * t, y + Math.sin(angle) * t, w, h);
+        }
+    }
+    ctx.globalCompositeOperation = 'source-in';
+    ctx.fillStyle = color;
+    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    ctx.restore();
+}
+
+function drawBottomBase(ctx, layout, pxPerCm) {
+    const shape = baseShapeInput.value;
+    if (shape === 'none') return;
+    const baseW = (parseFloat(baseWidthCmInput.value) || 10) * pxPerCm;
+    const baseH = (parseFloat(baseHeightCmInput.value) || 5) * pxPerCm;
+    const offset = (parseFloat(baseOffsetCmInput.value) || 0) * pxPerCm;
+    const color = baseColorInput.value;
+    const centerX = (layout.offsetX + layout.contentW / 2) * pxPerCm + offset;
+    const bottomY = (layout.offsetY + layout.contentH) * pxPerCm;
+
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    if (shape === 'triangle') {
+        ctx.moveTo(centerX - baseW / 2, bottomY - baseH);
+        ctx.lineTo(centerX + baseW / 2, bottomY - baseH);
+        ctx.lineTo(centerX, bottomY);
+    } else if (shape === 'trapezoid') {
+        ctx.moveTo(centerX - baseW / 2, bottomY - baseH);
+        ctx.lineTo(centerX + baseW / 2, bottomY - baseH);
+        ctx.lineTo(centerX + baseW / 3, bottomY);
+        ctx.lineTo(centerX - baseW / 3, bottomY);
+    } else if (shape === 'rounded') {
+        ctx.arc(centerX, bottomY - baseH, baseW / 2, 0, Math.PI);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = '#000000';
+    ctx.moveTo(centerX - baseW / 2, bottomY - baseH);
+    ctx.lineTo(centerX + baseW / 2, bottomY - baseH);
+    ctx.stroke();
+    ctx.restore();
+}
+
+function drawTrimMarks(ctx, x, y, w, h, pxPerCm) {
+    const len = 0.3 * pxPerCm;
+    ctx.save();
+    ctx.strokeStyle = '#ff3b3b';
+    ctx.lineWidth = Math.max(1, 0.015 * pxPerCm);
+    [[x, y, 1, 1], [x + w, y, -1, 1], [x, y + h, 1, -1], [x + w, y + h, -1, -1]].forEach(([cx, cy, dx, dy]) => {
+        ctx.beginPath();
+        ctx.moveTo(cx, cy); ctx.lineTo(cx + dx * len, cy);
+        ctx.moveTo(cx, cy); ctx.lineTo(cx, cy + dy * len);
+        ctx.stroke();
+    });
+    ctx.restore();
+}
+
+function buildFullCanvas(layout, pxPerCm) {
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(layout.boxW * pxPerCm);
+    canvas.height = Math.round(layout.boxH * pxPerCm);
+    const ctx = canvas.getContext('2d');
+
+    if (fillBlankInput.checked) {
+        ctx.fillStyle = bgColorInput.value;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    const outlinePx = layout.oneSideCm * pxPerCm;
+    const imgX = layout.offsetX * pxPerCm + outlinePx;
+    const imgY = layout.offsetY * pxPerCm + outlinePx;
+    const charW = layout.contentW * pxPerCm - outlinePx * 2;
+    const charH = layout.contentH * pxPerCm - outlinePx * 2;
+
+    const o = layout.outline;
+    if (o.black.enabled && o.black.mm > 0) {
+        const t = ((o.white.enabled ? o.white.mm : 0) + o.black.mm) * (pxPerCm / 10);
+        drawOutline(ctx, rawImage, imgX, imgY, charW, charH, t, o.black.color);
+    }
+    if (o.white.enabled && o.white.mm > 0) {
+        drawOutline(ctx, rawImage, imgX, imgY, charW, charH, o.white.mm * (pxPerCm / 10), o.white.color);
+    }
+    ctx.drawImage(rawImage, imgX, imgY, charW, charH);
+    drawBottomBase(ctx, layout, pxPerCm);
+    return canvas;
+}
+
+function sliceSheet(fullCanvas, r, c, layout, pxPerCm) {
+    const canvas = document.createElement('canvas');
+    const bake = bakeMarginInput.checked;
+    const w = (bake ? layout.paper.width : layout.usableW) * pxPerCm;
+    const h = (bake ? layout.paper.height : layout.usableH) * pxPerCm;
+    canvas.width = Math.round(w);
+    canvas.height = Math.round(h);
+    const ctx = canvas.getContext('2d');
+    const sourceX = c * layout.usableW * pxPerCm;
+    const sourceY = r * layout.usableH * pxPerCm;
+    const destX = bake ? layout.marginCm * pxPerCm : 0;
+    const destY = bake ? layout.marginCm * pxPerCm : 0;
+    ctx.drawImage(fullCanvas, sourceX, sourceY, layout.usableW * pxPerCm, layout.usableH * pxPerCm, destX, destY, layout.usableW * pxPerCm, layout.usableH * pxPerCm);
+    if (bake && trimMarksInput.checked) {
+        drawTrimMarks(ctx, destX, destY, layout.usableW * pxPerCm, layout.usableH * pxPerCm, pxPerCm);
+    }
+    return canvas;
+}
+
+function buildAssemblyMap(layout) {
+    const tile = 72;
+    const canvas = document.createElement('canvas');
+    canvas.width = layout.cols * tile;
+    canvas.height = layout.rows * tile;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#1c1424';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.font = '22px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (let r = 0; r < layout.rows; r++) {
+        for (let c = 0; c < layout.cols; c++) {
+            const x = c * tile, y = r * tile;
+            ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+            ctx.strokeRect(x + 1, y + 1, tile - 2, tile - 2);
+            const label = pageLabel(r, c, layout);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(label.row + '-' + label.col, x + tile / 2, y + tile / 2);
+        }
+    }
+    return canvas;
+}
+
+function refreshSelectionUI() {
+    document.querySelectorAll('.thumb').forEach(el => {
+        el.classList.toggle('unselected', !selected.has(el.dataset.key));
+        const cb = el.querySelector('.thumb-check');
+        if (cb) cb.checked = selected.has(el.dataset.key);
+    });
+    const total = lastLayout ? lastLayout.cols * lastLayout.rows : 0;
+    selectedCountDisp.textContent = selected.size + ' / ' + total;
+}
+
+function buildThumb(key, r, c) {
+    const wrap = document.createElement('div');
+    wrap.className = 'thumb';
+    wrap.dataset.key = key;
+
+    const check = document.createElement('input');
+    check.type = 'checkbox';
+    check.className = 'thumb-check';
+    check.checked = true;
+    check.addEventListener('change', () => {
+        if (check.checked) selected.add(key); else selected.delete(key);
+        refreshSelectionUI();
+    });
+    wrap.appendChild(check);
+
+    const guide = document.createElement('div');
+    guide.className = 'margin-guide';
+    wrap.appendChild(guide);
+
+    const tag = document.createElement('div');
+    tag.className = 'thumb-tag';
+    wrap.appendChild(tag);
+
+    const dl = document.createElement('button');
+    dl.className = 'icon-button interactive thumb-dl';
+    dl.type = 'button';
+    dl.title = 'Download this page';
+    dl.innerHTML = '<img class="icon icon-sm icon-on-brand" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/download.png" alt="">';
+    dl.addEventListener('click', () => exportSingle(r, c, lastLayout));
+    wrap.appendChild(dl);
+
+    const canvas = document.createElement('canvas');
+    wrap.appendChild(canvas);
+
+    return { wrap, check, guide, tag, dl, canvas };
+}
+
+function renderPreview() {
+    if (!rawImage) return;
+
+    const paper = getPaperDimensionsCm();
+    const layout = computeLayout(paper);
+    lastLayout = layout;
+
+    usableDimDisp.textContent = layout.usableW.toFixed(1) + ' x ' + layout.usableH.toFixed(1) + ' cm';
+    totalPagesDisp.textContent = (layout.cols * layout.rows) + ' (' + layout.cols + 'x' + layout.rows + ')';
+    totalDimDisp.textContent = layout.contentW.toFixed(1) + ' x ' + layout.contentH.toFixed(1) + ' cm';
+
+    const shapeKey = layout.rows + 'x' + layout.cols;
+    if (shapeKey !== lastShapeKey) {
+        sheetGrid.innerHTML = '';
+        thumbEls = {};
+        selected = new Set();
+        for (let r = 0; r < layout.rows; r++) {
+            for (let c = 0; c < layout.cols; c++) {
+                const key = r + '-' + c;
+                selected.add(key);
+                const els = buildThumb(key, r, c);
+                thumbEls[key] = els;
+                sheetGrid.appendChild(els.wrap);
+            }
+        }
+        lastShapeKey = shapeKey;
+    }
+
+    sheetGrid.style.display = 'grid';
+    sheetGrid.style.gridTemplateColumns = 'repeat(' + layout.cols + ', 1fr)';
+    sheetGrid.style.gap = 'var(--space-md)';
+
+    const viewportWidth = Math.min(window.innerWidth - 80, 640);
+    const previewPpm = Math.max(1.2, (viewportWidth / layout.cols) / layout.paper.width);
+    const fullCanvas = buildFullCanvas(layout, previewPpm);
+
+    const paperWpx = layout.paper.width * previewPpm;
+    const paperHpx = layout.paper.height * previewPpm;
+    const marginPx = layout.marginCm * previewPpm;
+    const bake = bakeMarginInput.checked;
+
+    for (let r = 0; r < layout.rows; r++) {
+        for (let c = 0; c < layout.cols; c++) {
+            const key = r + '-' + c;
+            const els = thumbEls[key];
+            els.wrap.style.width = paperWpx + 'px';
+            els.wrap.style.height = paperHpx + 'px';
+
+            els.guide.style.left = marginPx + 'px';
+            els.guide.style.top = marginPx + 'px';
+            els.guide.style.width = (paperWpx - marginPx * 2) + 'px';
+            els.guide.style.height = (paperHpx - marginPx * 2) + 'px';
+
+            const label = pageLabel(r, c, layout);
+            els.tag.textContent = 'R' + label.row + ':C' + label.col;
+
+            els.canvas.width = Math.round(paperWpx);
+            els.canvas.height = Math.round(paperHpx);
+            const ctx = els.canvas.getContext('2d');
+            ctx.clearRect(0, 0, els.canvas.width, els.canvas.height);
+            const sliced = sliceSheet(fullCanvas, r, c, layout, previewPpm);
+            ctx.drawImage(sliced, bake ? 0 : marginPx, bake ? 0 : marginPx);
+        }
+    }
+    refreshSelectionUI();
+}
+
+async function exportSingle(r, c, layout) {
+    const exportScale = parseFloat(exportScaleInput.value);
+    const pxPerCm = 37.795 * exportScale;
+    const fullCanvas = buildFullCanvas(layout, pxPerCm);
+    const sliced = sliceSheet(fullCanvas, r, c, layout, pxPerCm);
+    const label = pageLabel(r, c, layout);
+    const blob = await new Promise(res => sliced.toBlob(res, 'image/png'));
+    const name = buildFileName(fileNamePatternInput.value, label.row, label.col, r * layout.cols + c + 1);
+    saveAs(blob, name);
+}
+
+async function exportZip() {
+    if (!rawImage) { showModal('Notice', 'Upload an image first.'); return; }
+    if (selected.size === 0) { showModal('Notice', 'No pages are selected. Choose at least one page in the preview or use Select All in the Export tab.'); return; }
+
+    const originalText = exportBtn.innerHTML;
+    exportBtn.disabled = true;
+    exportBtn.textContent = 'Generating...';
+
+    const paper = getPaperDimensionsCm();
+    const layout = computeLayout(paper);
+    const exportScale = parseFloat(exportScaleInput.value);
+    const pxPerCm = 37.795 * exportScale;
+    const fullCanvas = buildFullCanvas(layout, pxPerCm);
+
+    const zip = new JSZip();
+    let index = 1;
+    for (let r = 0; r < layout.rows; r++) {
+        for (let c = 0; c < layout.cols; c++) {
+            if (!selected.has(r + '-' + c)) continue;
+            const sliced = sliceSheet(fullCanvas, r, c, layout, pxPerCm);
+            const label = pageLabel(r, c, layout);
+            const blob = await new Promise(res => sliced.toBlob(res, 'image/png'));
+            zip.file(buildFileName(fileNamePatternInput.value, label.row, label.col, index), blob);
+            index++;
+        }
+    }
+
+    if (assemblyMapInput.checked) {
+        const map = buildAssemblyMap(layout);
+        const mapBlob = await new Promise(res => map.toBlob(res, 'image/png'));
+        zip.file('assembly-map.png', mapBlob);
+    }
+
+    const content = await zip.generateAsync({ type: 'blob' });
+    const zipName = (zipNameInput.value.trim() || 'standee_poster_cutouts').replace(/[<>:"/\\|?*]/g, '_').replace(/\.zip$/i, '') + '.zip';
+    saveAs(content, zipName);
+
+    exportBtn.disabled = false;
+    exportBtn.innerHTML = originalText;
+}
+
+function resetDefaults() {
+    slicingModeInput.value = 'grid';
+    colsInput.value = 2; rowsInput.value = 2; targetHeightCmInput.value = 140;
+    lockAspectInput.checked = true; lockAspectInput.disabled = false;
+    gridControls.style.display = 'flex'; heightControls.style.display = 'none';
+    paperPresetInput.value = '300,300'; customPaperDimensions.style.display = 'none';
+    customWidthCmInput.value = 25; customHeightCmInput.value = 25;
+    orientationInput.value = 'portrait'; marginCmInput.value = 1;
+    bakeMarginInput.checked = false; fillBlankInput.checked = false; bgColorInput.value = '#ffffff';
+    baseShapeInput.value = 'triangle'; baseWidthCmInput.value = 15; baseHeightCmInput.value = 6;
+    baseOffsetCmInput.value = 0; baseColorInput.value = '#334155';
+    whiteEnabledInput.checked = true; whiteMmInput.value = 6; whiteMmVal.textContent = '6mm'; whiteColorInput.value = '#ffffff';
+    blackEnabledInput.checked = false; blackMmInput.value = 1.5; blackMmVal.textContent = '1.5mm'; blackColorInput.value = '#000000';
+    numberingCornerInput.value = 'top-left'; trimMarksInput.checked = false; assemblyMapInput.checked = true;
+    exportScaleInput.value = '2'; zipNameInput.value = 'standee_poster_cutouts'; fileNamePatternInput.value = 'cutout_r{row}_c{col}.png';
+    trimMarksHint.style.display = 'flex';
+    renderPreview();
+}
+</script>
+</body>
+</html>
