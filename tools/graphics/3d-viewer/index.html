@@ -140,7 +140,7 @@ button.pill{border-radius:var(--radius-full)}
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
 <script>
 const $=s=>document.querySelector(s), coarse=matchMedia('(pointer:coarse)').matches, IC='https://raw.githubusercontent.com/nako-hikari/assets/main/ui/';
-const S={az:35,el:45,sunI:3.2,sunCol:'#fff3dd',shadows:true,ground:false,dyn:true,dynK:.5,shOp:.55,shSoft:3,shRes:2048,env:1,exposure:1,
+const S={az:35,el:45,sunI:3.2,sunCol:'#fff3dd',shadows:true,ground:false,dyn:true,dynK:.5,sunOn:true,ambOn:true,sunDisc:1,hlim:0,rMin:0,mMul:1,emiMul:1,fmt:0,shOp:.55,shSoft:3,shRes:2048,env:1,exposure:1,
  top:'#4f93ff',mid:'#bfdcff',bot:'#dfe6ee',
  rim:false,rimI:2.5,rimCol:'#a8ccff',rimAngle:0,rimEl:25,fill:.35,
  bloom:false,bStr:.7,bRad:.5,bThr:1,bSm:.1,
@@ -349,9 +349,9 @@ const bloomPass=new THREE.UnrealBloomPass(new THREE.Vector2(256,256),.7,.5,1); c
  const bs=bloomPass.setSize.bind(bloomPass);
  bloomPass.setSize=function(w,h){const sc=Math.max(1,+S.bRange||1),sw=this._srcW||w;w=Math.max(16,w/sc);h=Math.max(16,h/sc);bs(w,h);const rx=Math.max(1,Math.round(w/2)),ry=Math.max(1,Math.round(h/2));
   hpU.foot.value.set(1/rx,1/ry);hpU.n.value=Math.max(1,Math.min(12,Math.round(sw/rx)));};}
-const outPass=new THREE.ShaderPass({uniforms:{tDiffuse:{value:null},exposure:{value:1},tone:{value:0},contrast:{value:1},sat:{value:1},vig:{value:0}},
+const outPass=new THREE.ShaderPass({uniforms:{tDiffuse:{value:null},exposure:{value:1},tone:{value:0},contrast:{value:1},sat:{value:1},vig:{value:0},hlim:{value:0}},
  vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
- fragmentShader:'uniform sampler2D tDiffuse;uniform float exposure,tone,contrast,sat,vig;varying vec2 vUv;float hs(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}vec3 hb(vec3 x){return ((x*(.15*x+.05)+.004)/(x*(.15*x+.5)+.06))-vec3(.0667);}void main(){vec4 c=texture2D(tDiffuse,vUv);float a=clamp(max(c.a,max(c.r,max(c.g,c.b))),0.,1.);vec3 x=c.rgb/max(a,1e-4)*exposure;if(tone<.5)x=(x*(2.51*x+.03))/(x*(2.43*x+.59)+.14);else if(tone>2.5)x=hb(x*2.)/hb(vec3(11.2));else if(tone>1.5)x=x/(1.+x);x=pow(clamp(x,0.,1.),vec3(1./2.2));x=(x-.5)*contrast+.5;float l=dot(x,vec3(.299,.587,.114));x=mix(vec3(l),x,sat);x*=1.-vig*smoothstep(.3,.85,distance(vUv,vec2(.5)));x+=(hs(gl_FragCoord.xy)-.5)/255.;gl_FragColor=vec4(clamp(x,0.,1.)*a,a);}'});
+ fragmentShader:'uniform sampler2D tDiffuse;uniform float exposure,tone,contrast,sat,vig,hlim;varying vec2 vUv;float hs(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}vec3 hb(vec3 x){return ((x*(.15*x+.05)+.004)/(x*(.15*x+.5)+.06))-vec3(.0667);}void main(){vec4 c=texture2D(tDiffuse,vUv);float a=clamp(max(c.a,max(c.r,max(c.g,c.b))),0.,1.);vec3 x=c.rgb/max(a,1e-4)*exposure;float hm=max(x.r,max(x.g,x.b));if(hlim>.001&&hm>hlim){x*=(hlim+(hm-hlim)/(1.+(hm-hlim)/hlim))/hm;}if(tone<.5)x=(x*(2.51*x+.03))/(x*(2.43*x+.59)+.14);else if(tone>2.5)x=hb(x*2.)/hb(vec3(11.2));else if(tone>1.5)x=x/(1.+x);x=pow(clamp(x,0.,1.),vec3(1./2.2));x=(x-.5)*contrast+.5;float l=dot(x,vec3(.299,.587,.114));x=mix(vec3(l),x,sat);x*=1.-vig*smoothstep(.3,.85,distance(vUv,vec2(.5)));x+=(hs(gl_FragCoord.xy)-.5)/255.;gl_FragColor=vec4(clamp(x,0.,1.)*a,a);}'});
 composer.addPass(outPass);
 
 
@@ -363,7 +363,7 @@ envScene.add(new THREE.Mesh(new THREE.SphereGeometry(10,32,16),new THREE.ShaderM
  fragmentShader:'uniform vec3 top,mid,bot,sd,sc;varying vec3 p;void main(){vec3 d=normalize(p);float h=d.y;vec3 c=h>0.?mix(mid,top,pow(h,.6)):mix(mid,bot,pow(-h,.6));c+=sc*pow(max(dot(d,sd),0.),200.);gl_FragColor=vec4(c,1.);}'})));
 function buildEnv(){
  const N=S.lightMode==1;eu.top.value.set(N?'#8a8f98':S.top).convertSRGBToLinear(); eu.mid.value.set(N?'#b8bcc4':S.mid).convertSRGBToLinear(); eu.bot.value.set(N?'#4a4d54':S.bot).convertSRGBToLinear();
- eu.sd.value.copy(sunDir); eu.sc.value.set(S.sunCol).convertSRGBToLinear().multiplyScalar(S.sunI*3);
+ eu.sd.value.copy(sunDir); eu.sc.value.set(S.sunCol).convertSRGBToLinear().multiplyScalar(S.sunI*3*S.sunDisc*(S.sunOn?1:0));
  const et=envSrc();const t=et?pmrem.fromEquirectangular(et):pmrem.fromScene(envScene,.02); if(envRT)envRT.dispose(); envRT=t; scene.environment=S.world?t.texture:null; dirty=true;}
 
 
@@ -397,7 +397,7 @@ function updAcc(){const off=S.sunFollow?camAz():0,r=Math.PI/180;
  pl.forEach((L,i)=>{const n='p'+(i+1),on=S.world&&S[n];L.intensity=on?S[n+'I']*S.lightMul:0;L.color.set(S[n+'Col']).convertSRGBToLinear();const e=S[n+'El']*r,a=(S[n+'Az']+off)*r,d=R*S[n+'D'];
   L.position.set(Math.cos(e)*Math.sin(a),Math.sin(e),Math.cos(e)*Math.cos(a)).multiplyScalar(d).add(ctr);L.distance=d*4;});}
 function updMarks(){lightGrp.visible=S.showLights;if(!S.showLights)return;
- const L=[[sun,sun.position.clone().sub(ctr).normalize(),S.world&&S.sunI>0],[rim,rim.position.clone().normalize(),S.world&&S.rim&&S.rimI>0],[fill,fill.position.clone().normalize(),S.world&&S.fill>0],[pl[0],null,S.world&&S.p1],[pl[1],null,S.world&&S.p2]];
+ const L=[[sun,sun.position.clone().sub(ctr).normalize(),S.world&&S.sunOn&&S.sunI>0],[rim,rim.position.clone().normalize(),S.world&&S.rim&&S.rimI>0],[fill,fill.position.clone().normalize(),S.world&&S.fill>0],[pl[0],null,S.world&&S.p1],[pl[1],null,S.world&&S.p2]];
  L.forEach(([l,d,on],i)=>{const k=MK[i];k.m.visible=k.l.visible=!!on;if(!on)return;const p=d?ctr.clone().addScaledVector(d,R*2.6):l.position.clone();k.m.position.copy(p);k.m.scale.setScalar(R*.07);k.m.material.color.copy(l.color);k.l.material.color.copy(l.color);
   const a=k.g.attributes.position;a.setXYZ(0,p.x,p.y,p.z);a.setXYZ(1,ctr.x,ctr.y,ctr.z);a.needsUpdate=true;});}
 function rotateEnv(t,deg){const im=t.image;let n;const w=im.width||im.naturalWidth,h=im.height||im.naturalHeight,sh=Math.round((((deg%360)+360)%360)/360*w);
@@ -408,7 +408,7 @@ function envSrc(){if(!(S.hdri&&envTex))return null;const d=Math.round(S.envRot)%
 function updRim(){updFog();updClip();const d=camera.position.clone().sub(controls.target),az=Math.atan2(d.x,d.z);
  const put=(l,a,e)=>{e*=Math.PI/180;l.position.set(Math.sin(a)*Math.cos(e),Math.sin(e),Math.cos(a)*Math.cos(e)).multiplyScalar(10);};
  put(rim,az+Math.PI+S.rimAngle*Math.PI/180,S.rimEl); put(fill,az+S.fillAng*Math.PI/180,S.fillEl);updAcc();updMarks();}
-function baseOf(m){return m.userData.b||(m.userData.b={tr:m.transparent,op:m.opacity,bl:m.blending,dw:m.depthWrite,sd:m.side,col:m.color?m.color.clone():null,map:m.map||null,ei:m.emissiveIntensity||1,at:m.alphaTest||0,emi:m.emissive?m.emissive.clone():null,emap:m.emissiveMap||null,vc:m.vertexColors,am:m.alphaMap||null,pm:m.premultipliedAlpha,sk:!!m.skinning,mt:!!m.morphTargets});}
+function baseOf(m){return m.userData.b||(m.userData.b={tr:m.transparent,op:m.opacity,bl:m.blending,dw:m.depthWrite,sd:m.side,col:m.color?m.color.clone():null,map:m.map||null,ei:m.emissiveIntensity||1,rg:m.roughness,mt2:m.metalness,at:m.alphaTest||0,emi:m.emissive?m.emissive.clone():null,emap:m.emissiveMap||null,vc:m.vertexColors,am:m.alphaMap||null,pm:m.premultipliedAlpha,sk:!!m.skinning,mt:!!m.morphTargets});}
 function mkFlat(m){const b=baseOf(m);const n=new THREE.MeshBasicMaterial({color:b.col?b.col.clone():new THREE.Color(1,1,1),map:b.map||b.emap||null,alphaMap:b.am,transparent:b.tr,opacity:b.op,side:b.sd,vertexColors:b.vc,alphaTest:b.at,depthWrite:b.dw,blending:b.bl,premultipliedAlpha:b.pm,skinning:b.sk,morphTargets:b.mt});
  if(!b.map&&!b.emap&&b.emi&&b.emi.getHex())n.color.copy(b.emi);n.userData.sid=m.userData.sid;baseOf(n);return n;}
 function styleMat(m,ov){const b=baseOf(m);let tr=b.tr,bl=b.bl,dw=b.dw,op=b.op,at=b.at;
@@ -422,7 +422,12 @@ function styleMat(m,ov){const b=baseOf(m);let tr=b.tr,bl=b.bl,dw=b.dw,op=b.op,at
  if(b.col){const br=ov.br===undefined?1:ov.br;
   if(ov.solid)m.color.set(ov.solidCol||'#000000').convertSRGBToLinear();
   else{m.color.copy(b.col);if(ov.tintOn)m.color.multiply(new THREE.Color(ov.tint||'#ffffff').convertSRGBToLinear());m.color.multiplyScalar(br);}
-  if('emissiveIntensity' in m)m.emissiveIntensity=ov.solid?0:b.ei*br;}
+  if('emissiveIntensity' in m){m.emissiveIntensity=(ov.solid||ov.emOff)?0:b.ei*br*(ov.emi===undefined?1:ov.emi)*S.emiMul;
+   if(ov.emFromTex){m.emissive.set(0xffffff);m.emissiveMap=b.map;}
+   else{if(b.emi)m.emissive.copy(b.emi);m.emissiveMap=b.emap;}
+   if(ov.emTintOn){const tcol=new THREE.Color(ov.emTint||'#ffffff').convertSRGBToLinear();if(!ov.emFromTex&&!b.emap&&b.emi&&!b.emi.getHex())m.emissive.copy(tcol);else m.emissive.multiply(tcol);}}}
+ if('roughness' in m&&b.rg!==undefined){m.roughness=Math.max(ov.rough===undefined?b.rg:ov.rough,S.rMin);m.metalness=(ov.metal===undefined?b.mt2:ov.metal)*S.mMul;}
+ if('envMapIntensity' in m)m.envMapIntensity=S.env*(ov.envI===undefined?1:ov.envI);
  m.needsUpdate=true;}
 function applyMats(){pivot.traverse(o=>{
  if(o.userData.pts){[].concat(o.material).forEach(m=>styleMat(m,OV[m.userData.sid]||{}));return;}
@@ -456,6 +461,9 @@ function matUI(b){
  pick('Depth write','dw',[['auto','Original'],['on','On'],['off','Off']]);
  pick('Sides','dbl',[['auto','Original'],['on','Double-sided'],['off','Front only']]);
  rng('Opacity','op',0,1,.01,1);rng('Brightness','br',0,6,.05,1);rng('Draw order','ro',-5,5,1,0);
+ rng('Roughness (override)','rough',0,1,.01,.5);rng('Metalness (override)','metal',0,1,.01,0);rng('Reflection strength','envI',0,6,.05,1);
+ {const h2=H('div','eyebrow');h2.style.marginTop='var(--space-lg)';h2.textContent='Emissive (glow)';b.appendChild(h2);}
+ rng('Emissive strength','emi',0,30,.05,1);tog('Glow from texture','emFromTex');tog('Emissive tint','emTintOn');col('Emissive color','emTint','#ffffff');tog('Turn emissive off','emOff');
  tog('Tint','tintOn');col('Tint color','tint','#ffffff');tog('Solid color (no texture)','solid');col('Solid color','solidCol','#000000');
  const bt=H('div','btns');
  [['Solo',()=>{ids.forEach(id=>{OV[id]=OV[id]||{};if(id===selMat)delete OV[id].hide;else OV[id].hide=true;});applyMats();build();}],
@@ -463,14 +471,14 @@ function matUI(b){
   ['Reset this',()=>{delete OV[selMat];applyMats();build();}],
   ['Reset all',()=>{OV={};applyMats();build();}]].forEach(([t,f])=>{const x=H('button');x.className='secondary interactive';x.textContent=t;x.onclick=f;bt.appendChild(x);});
  b.appendChild(bt);}
-function applyEnvI(){pivot.traverse(o=>{if(o.isMesh)[].concat(o.material).forEach(m=>{if(m&&'envMapIntensity' in m)m.envMapIntensity=S.env;});});}
+function applyEnvI(){pivot.traverse(o=>{if(o.isMesh)[].concat(o.material).forEach(m=>{if(m&&'envMapIntensity' in m){const ov=OV[m.userData.sid]||{};m.envMapIntensity=S.env*(ov.envI===undefined?1:ov.envI);}});});}
 function kelvin(k){k/=100;let r,g,b;if(k<=66){r=255;g=99.4708025861*Math.log(k)-161.1195681661;b=k<=19?0:138.5177312231*Math.log(k-10)-305.0447927307;}else{r=329.698727446*Math.pow(k-60,-.1332047592);g=288.1221695283*Math.pow(k-60,-.0755148492);b=255;}const c=v=>Math.max(0,Math.min(255,Math.round(v)));return '#'+[r,g,b].map(v=>c(v).toString(16).padStart(2,'0')).join('');}
 function apply(k){
  const r=Math.PI/180; if(k==='sunK'){S.sunCol=kelvin(S.sunK);syncUI();} setSunDir();
- sun.color.set(S.sunCol).convertSRGBToLinear(); sun.intensity=S.world?S.sunI*S.lightMul:0; sun.castShadow=S.shadows&&S.world; if(envRT)scene.environment=S.world?envRT.texture:null; outPass.uniforms.tone.value=S.tone;outPass.uniforms.contrast.value=S.contrast;outPass.uniforms.sat.value=S.sat;outPass.uniforms.vig.value=S.vig;
+ sun.color.set(S.sunCol).convertSRGBToLinear(); sun.intensity=(S.world&&S.sunOn)?S.sunI*S.lightMul:0; sun.castShadow=S.shadows&&S.world&&S.sunOn; if(envRT)scene.environment=S.world?envRT.texture:null; outPass.uniforms.tone.value=S.tone;outPass.uniforms.contrast.value=S.contrast;outPass.uniforms.sat.value=S.sat;outPass.uniforms.vig.value=S.vig;outPass.uniforms.hlim.value=+S.hlim||0;
  ground.visible=S.ground&&S.shadows; ground.material.opacity=S.shOp; sun.shadow.radius=S.shSoft;
  if(sun.shadow.mapSize.x!==+S.shRes){sun.shadow.mapSize.set(+S.shRes,+S.shRes);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null;}}
- rim.visible=S.world&&S.rim; rim.intensity=S.rimI*S.lightMul; rim.color.set(S.rimCol).convertSRGBToLinear(); fill.intensity=S.world?S.fill*S.lightMul:0;fill.color.set(S.fillCol).convertSRGBToLinear();ambL.intensity=S.world?S.amb*S.lightMul:0;ambL.color.set(S.ambCol).convertSRGBToLinear();
+ rim.visible=S.world&&S.rim; rim.intensity=S.rimI*S.lightMul; rim.color.set(S.rimCol).convertSRGBToLinear(); fill.intensity=S.world?S.fill*S.lightMul:0;fill.color.set(S.fillCol).convertSRGBToLinear();ambL.intensity=S.ambOn?S.amb*S.lightMul:0;ambL.color.set(S.ambCol).convertSRGBToLinear();
  camera.fov=S.fov; camera.updateProjectionMatrix();
  controls.enableDamping=S.smooth>0; controls.dampingFactor=Math.max(.03,1-S.smooth); controls.autoRotate=S.auto;controls.autoRotateSpeed=S.autoSpd;
  bloomPass.enabled=S.bloom; bloomPass.strength=S.bStr; bloomPass.radius=S.bRad; bloomPass.threshold=S.bThr;
@@ -483,7 +491,7 @@ function apply(k){
  view.style.background=S.checker?'repeating-conic-gradient(#8f8f95 0% 25%,#c9c9ce 0% 50%) 0 0/24px 24px':(S.skyBg?`linear-gradient(${S.top},${S.mid} 55%,${S.bot})`:S.bgCol);scene.background=(S.hdri&&envTex&&S.hdriBg)?envSrc():null;
  floorM.visible=+S.floor===1;gridM.visible=+S.floor===2;floorM.material.color.set(S.floorCol).convertSRGBToLinear();gridM.material.color.set(S.floorCol).convertSRGBToLinear();
  if(k==='quality'||k==='bRange')onResize();
- if(!k||k==='lightMode'||k==='hdri'||k==='envRot'||k==='sunFollow'||k==='sunK'||'topmidbotazelsunColsunI'.includes(k))envDirty=true; if(!k||['shade','softT','dbl','disp','wireCol'].includes(k))applyMats(); if(!k||k==='env')applyEnvI();
+ if(!k||k==='lightMode'||k==='hdri'||k==='envRot'||k==='sunFollow'||k==='sunK'||k==='sunDisc'||k==='sunOn'||'topmidbotazelsunColsunI'.includes(k))envDirty=true; if(!k||['shade','softT','dbl','disp','wireCol','rMin','mMul','emiMul'].includes(k))applyMats(); if(!k||k==='env')applyEnvI();
  updShadow(); updRim(); dirty=true;}
 function fit(){const b=new THREE.Box3().setFromObject(pivot); if(b.isEmpty())return; const sp=b.getBoundingSphere(new THREE.Sphere());
  const vf=S.fov*Math.PI/180,f=camera.aspect<1?2*Math.atan(Math.tan(vf/2)*camera.aspect):vf, d=sp.radius/Math.sin(f/2)*1.08;
@@ -661,7 +669,13 @@ const VIEWS=(()=>{try{return JSON.parse(localStorage.getItem('nako-views'))||[nu
 function setView(x,y,z){const d=camera.position.distanceTo(controls.target);camera.position.copy(controls.target).addScaledVector(new THREE.Vector3(x,y,z).normalize(),d);controls.update();dirty=true;updRim();}
 function saveView(i){VIEWS[i]={p:camera.position.toArray(),t:controls.target.toArray(),f:S.fov};try{localStorage.setItem('nako-views',JSON.stringify(VIEWS));}catch(e){}toast('View '+(i+1)+' saved');}
 function goView(i){const v=VIEWS[i];if(!v)return toast('View '+(i+1)+' is empty');camera.position.fromArray(v.p);controls.target.fromArray(v.t);S.fov=v.f;syncUI();apply();controls.update();dirty=true;}
-const LOOKK=['lightMul','sunK','az','el','sunI','sunCol','shadows','ground','shOp','shSoft','env','exposure','top','mid','bot','rim','rimI','rimCol','rimAngle','rimEl','fill','fillCol','fillAng','fillEl','amb','ambCol','p1','p1Col','p1I','p1Az','p1El','p1D','p2','p2Col','p2I','p2Az','p2El','p2D','sunFollow','envRot','bloom','bStr','bRad','bThr','bSm','bRange','bWide','bMode','bCol','bCol2','bAmt','world','contrast','sat','vig','bgCol','skyBg','tone','shade','lightMode','fog','fogHz','fogCol','fogStart','fogEnd','floor','floorCol','floorSize'];
+const LOOKK=['sunOn','ambOn','sunDisc','hlim','rMin','mMul','emiMul','lightMul','sunK','az','el','sunI','sunCol','shadows','ground','shOp','shSoft','env','exposure','top','mid','bot','rim','rimI','rimCol','rimAngle','rimEl','fill','fillCol','fillAng','fillEl','amb','ambCol','p1','p1Col','p1I','p1Az','p1El','p1D','p2','p2Col','p2I','p2Az','p2El','p2D','sunFollow','envRot','bloom','bStr','bRad','bThr','bSm','bRange','bWide','bMode','bCol','bCol2','bAmt','world','contrast','sat','vig','bgCol','skyBg','tone','shade','lightMode','fog','fogHz','fogCol','fogStart','fogEnd','floor','floorCol','floorSize'];
+const POSES=[null,null,null];
+function poseUI(b){const sv=i=>{if(!bones.length)return toast('This model has no bones');POSES[i]=bones.map(x=>({n:x.name,p:x.position.clone(),q:x.quaternion.clone(),s:x.scale.clone()}));toast('Pose '+(i+1)+' saved');build();};
+ const ld=i=>{const P=POSES[i];if(!P)return toast('Pose '+(i+1)+' is empty');if(P.length!==bones.length)return toast('Pose does not match this model');const l=bones.filter(x=>!x.userData.locked),bf=snapAll(l);
+  bones.forEach((x,k)=>{if(x.userData.locked)return;x.position.copy(P[k].p);x.quaternion.copy(P[k].q);x.scale.copy(P[k].s);x.updateMatrixWorld(true);});pushH(bf,snapAll(l));syncAnchor();dirty=true;toast('Pose '+(i+1)+' loaded');};
+ const e=document.createElement('div');e.className='eyebrow';e.textContent='Pose slots';e.style.marginTop='var(--space-lg)';b.appendChild(e);
+ brow(b,[0,1,2].map(i=>['Save pose '+(i+1),()=>sv(i)]));brow(b,[0,1,2].map(i=>[POSES[i]?'Load '+(i+1)+' ●':'Slot '+(i+1)+' (empty)',()=>ld(i)]));}
 const LOOKS=(()=>{try{return JSON.parse(localStorage.getItem('nako-looks'))||[null,null,null];}catch(e){return [null,null,null];}})();
 function saveLook(i){const o={};LOOKK.forEach(k=>o[k]=S[k]);LOOKS[i]=o;try{localStorage.setItem('nako-looks',JSON.stringify(LOOKS));}catch(e){}toast('Look '+(i+1)+' saved');}
 function loadLook(i){if(!LOOKS[i])return toast('Look '+(i+1)+' is empty');Object.assign(S,LOOKS[i]);syncUI();apply();toast('Look '+(i+1)+' loaded');}
@@ -701,11 +715,11 @@ const TABS={
   ['b',[['PBR studio',()=>{Object.assign(S,{shade:0,tone:0,world:true,bloom:false});syncUI();apply();}],['Unlit + glow',()=>{Object.assign(S,{shade:1,tone:1,exposure:1,bloom:true,bStr:.35,bThr:.85,bRad:.4,bSm:.3});syncUI();apply();}]]],
   ['n','Glowing / space / unlit models: use Flat + None. If layers look noisy, try Soft transparency.']],
  Materials:[['f',matUI]],
- Light:[['t','world','World light (sun + sky)'],['b',Object.keys(LP).map(n=>[n,()=>{Object.assign(S,LP[n]);syncUI();apply();}])],['r','az','Sun angle °',0,360,1],['r','el','Sun height °',-90,90,1],['r','sunI','Sun intensity',0,12,.05],['c','sunCol','Sun color'],['r','sunK','Sun temperature (K)',1500,12000,50],['r','lightMul','Master light multiplier',0,4,.01],['t','sunFollow','Sun follows camera (angle is relative)'],
-  ['r','amb','Ambient light',0,2,.01],['c','ambCol','Ambient color'],['t','showLights','Show light markers (drag them)'],
+ Light:[['t','world','World light (sun + sky)'],['t','sunOn','Sun light'],['b',Object.keys(LP).map(n=>[n,()=>{Object.assign(S,LP[n]);syncUI();apply();}])],['r','az','Sun angle °',0,360,1],['r','el','Sun height °',-90,90,1],['r','sunI','Sun intensity',0,12,.05],['c','sunCol','Sun color'],['r','sunDisc','Sun reflection glint',0,2,.01],['r','sunK','Sun temperature (K)',1500,12000,50],['r','lightMul','Master light multiplier',0,4,.01],['t','sunFollow','Sun follows camera (angle is relative)'],
+  ['t','ambOn','Ambient light (works without the sun)'],['r','amb','Ambient strength',0,4,.01],['c','ambCol','Ambient color'],['t','showLights','Show light markers (drag them)'],
   ['t','shadows','Shadows'],['t','ground','Ground shadow'],['r','shOp','Shadow darkness',0,1,.01],['r','shSoft','Shadow softness',0,12,.1],
   ['r','env','Sky light / reflect',0,4,.05],['r','exposure','Exposure',.2,3,.01],
-  ['b',[['Reset lights',()=>{const k=['az','el','sunI','sunCol','sunK','lightMul','amb','ambCol','rim','rimI','rimCol','rimAngle','rimEl','fill','fillCol','fillAng','fillEl','p1','p2','sunFollow'];k.forEach(x=>S[x]=DEF[x]);syncUI();apply();}]]],
+  ['b',[['Reset lights',()=>{const k=['az','el','sunI','sunCol','sunK','lightMul','amb','ambCol','rim','rimI','rimCol','rimAngle','rimEl','fill','fillCol','fillAng','fillEl','p1','p2','sunFollow','sunOn','ambOn','sunDisc'];k.forEach(x=>S[x]=DEF[x]);syncUI();apply();}]]],
   ['n','Every slider also has a number box. Type any value, even past the slider range. With light markers on, drag a marker on the model to aim that light.']],
  'Rim & Fill':[['t','rim','Rim light'],['r','rimI','Rim intensity',0,12,.05],['c','rimCol','Rim color'],['r','rimAngle','Rim side offset °',-90,90,1],['r','rimEl','Rim height °',-20,80,1],['r','fill','Fill light',0,3,.05],['c','fillCol','Fill color'],['r','fillAng','Fill side °',-180,180,1],['r','fillEl','Fill height °',-30,80,1],
   ['t','p1','Accent light A'],['c','p1Col','A color'],['r','p1I','A intensity',0,12,.05],['r','p1Az','A angle °',-180,180,1],['r','p1El','A height °',-60,89,1],['r','p1D','A distance',.3,5,.05],
@@ -717,7 +731,7 @@ const TABS={
   sel('bMode','Glow color',[[0,'Natural (scene colors)'],[1,'Tint (multiply)'],[2,'Solid color'],[3,'Two-tone (dim → hot)']]),['c','bCol','Glow color'],['c','bCol2','Hot color (two-tone)'],['r','bAmt','Color strength',0,1,.01],
   ['n','Range makes the glow bigger without changing how fast it fades. Natural keeps the model colors; Tint multiplies them; Solid paints all glow in your color; Two-tone goes from the first color in dim areas to the hot color in the brightest.']],
  Fog:[['t','fog','Fog'],['t','fogHz','Match horizon color'],['c','fogCol','Fog color'],['r','fogStart','Start (object sizes)',-3,4,.05],['r','fogEnd','Full fog at',-2,10,.05],['n','Distance fog from the camera: parts of the model farther away fade toward the fog color. Lower "Full fog at" for thicker haze.']],
- Bones:[['t','showBones','Show bone points'],['t','boneOnly','Only selected + neighbors'],['r','markSize','Point size (px)',2,20,1],['r','gizmo','Gizmo size',.4,2,.05],['f',boneUI],
+ Bones:[['t','showBones','Show bone points'],['t','boneOnly','Only selected + neighbors'],['r','markSize','Point size (px)',2,20,1],['r','gizmo','Gizmo size',.4,2,.05],['f',boneUI],['f',poseUI],
   ['b',[['Parent',()=>{if(selBone&&selBone.parent&&selBone.parent.isBone)pickBone(selBone.parent);}],['Child',()=>{const c=selBone&&selBone.children.find(x=>x.isBone);if(c)pickBone(c);}],['Root',()=>home()]]],
   sel('mirAxis','Mirror across',[[0,'X axis (left / right)'],[1,'Y axis'],[2,'Z axis']]),['t','mirKids','Include child bones'],
   ['b',[['Selected to opposite',()=>mirrorRun('sel')],['Left to right',()=>mirrorRun('lr')],['Right to left',()=>mirrorRun('rl')],['Swap sides',()=>mirrorRun('swap')]]],
@@ -734,8 +748,15 @@ const TABS={
   ['n','Drag = orbit · two fingers / right-drag = pan · pinch / wheel = zoom. Lower preview quality if it lags.']],
  About:[['f',aboutUI]],
  Export:[sel('size','Size (long side)',[[1024,'1024 px'],[1920,'1920 px'],[2048,'2048 px'],[3072,'3072 px'],[4096,'4096 px'],[6000,'6000 px']]),
-  sel('ss','Supersampling',[[1,'Off'],[2,'2× good'],[3,'3×'],[4,'4× best']]),['t','transp','Transparent background'],sel('cropMode','Crop',[[0,'Off (screen framing)'],[1,'Tight to object (no glow)'],[2,'Every pixel (glow + shadow)']]),['r','cropPad','Crop margin %',0,20,1],['r','cropCut','Glow cutoff % (0 = every pixel)',0,10,.1],
+  sel('fmt','Format',[[0,'PNG'],[1,'WebP'],[2,'JPG (no transparency)']]),sel('ss','Supersampling',[[1,'Off'],[2,'2× good'],[3,'3×'],[4,'4× best']]),['t','transp','Transparent background'],sel('cropMode','Crop',[[0,'Off (screen framing)'],[1,'Tight to object (no glow)'],[2,'Every pixel (glow + shadow)']]),['r','cropPad','Crop margin %',0,20,1],['r','cropCut','Glow cutoff % (0 = every pixel)',0,10,.1],
   ['b',[['Export PNG',()=>doExport(),'pri'],['Copy to clipboard',()=>doCopy()]]],['b',[['Export model + shadow (2 images)',()=>doSplit()]]],['n','Model + shadow saves two transparent PNGs with the same framing: one with only the model, one with only the ground shadow, so you can layer them. Uses the current view, lighting, shadows and bloom. Every pixel mode keeps the glow and shadow, down to the glow cutoff. Size is clamped to your device limits.']]};
+Object.assign(TABS,{
+ Shine:[['n','Tame glare and shiny spots. Raising minimum roughness and lowering metalness spreads or removes sharp highlights. The highlight limit softly caps anything too bright after lighting.'],
+  ['r','rMin','Minimum roughness',0,1,.01],['r','mMul','Metalness multiplier',0,1,.01],['r','sunDisc','Sun reflection glint',0,2,.01],['r','env','Sky reflection strength',0,4,.05],['r','hlim','Highlight limit (0 = off)',0,8,.05],
+  ['r','emiMul','Global emissive strength',0,20,.05],['r','bThr','Glow cutoff (bloom)',0,2,.01],['r','bStr','Glow strength',0,3,.01],['t','bloom','Glow (bloom)'],
+  ['b',[['Calm shine',()=>{Object.assign(S,{rMin:.55,mMul:.5,sunDisc:.2,hlim:1.5});syncUI();apply();}],['Matte',()=>{Object.assign(S,{rMin:.9,mMul:0,sunDisc:0,hlim:1.2});syncUI();apply();}],['Original',()=>{Object.assign(S,{rMin:0,mMul:1,sunDisc:1,hlim:0});syncUI();apply();}]]],
+  ['b',[['Reset look and lighting',()=>{LOOKK.forEach(k=>{S[k]=DEF[k];});syncUI();apply();}]]],
+  ['n','Per-material roughness, metalness, reflection and emissive controls are in the Materials tab.']]});
 Object.assign(TABS,{
  Stage:[sel('floor','Floor',[[0,'Off (shadow only)'],[1,'Solid disc'],[2,'Grid']]),['c','floorCol','Floor color'],['r','floorSize','Floor size',1,15,.1],['t','checker','Transparency checkerboard (preview only)'],
   sel('disp','Display mode',[[0,'Normal'],[1,'Clay (no textures)'],[2,'Wireframe'],[3,'Normals']]),['c','wireCol','Wireframe color'],
@@ -814,7 +835,7 @@ function layerState(lay){const gv=ground.visible,fv=floorM.visible,gd=gridM.visi
  if(lay==='shadow'){bloomPass.enabled=false;pivot.traverse(o=>{if(o.material)[].concat(o.material).forEach(m=>{ms.push([m,m.colorWrite,m.depthWrite]);m.colorWrite=false;m.depthWrite=false;});});}
  if(lay!=='model')updShadow();
  return()=>{ground.visible=gv;floorM.visible=fv;gridM.visible=gd;bloomPass.enabled=bb;S.ground=sg;sun.castShadow=sc;S.transp=st;ms.forEach(a=>{a[0].colorWrite=a[1];a[0].depthWrite=a[2];});updShadow();};}
-async function renderPng(L,sh){
+async function renderPng(L,sh,fm){fm=fm||0;
  if(busy)return null;busy=true;clearTimeout(dynT);dynF=1;toast('Rendering...');await new Promise(r=>setTimeout(r,60));
  const FW=view.clientWidth||1,FH=view.clientHeight||1,asp=FW/FH,maxDim=Math.min(renderer.capabilities.maxTextureSize,8192),maxPx=coarse?14e6:36e6;
  const prevMap=sun.shadow.mapSize.x,hi=Math.min(4096,renderer.capabilities.maxTextureSize),vis=tc.visible,bv=boneGrp.visible,bgS=scene.background,gdv=gridM.visible,lgv=lightGrp.visible;let out=null,note='';
@@ -837,16 +858,16 @@ async function renderPng(L,sh){
   const r1=L?layerState(L):null;let full;
   try{full=halve(shot(w,h,s,rect),w,h);}finally{r1&&r1();}
   out=document.createElement('canvas');out.width=w;out.height=h;const x=out.getContext('2d');
-  const tr=S.transp||!!L;if(!tr&&!S.skyBg){x.fillStyle=S.bgCol;x.fillRect(0,0,w,h);}else if(!tr){const g=x.createLinearGradient(0,0,0,h);g.addColorStop(0,S.top);g.addColorStop(.55,S.mid);g.addColorStop(1,S.bot);x.fillStyle=g;x.fillRect(0,0,w,h);}
+  const tr=(S.transp||!!L)&&fm!==2;if(!tr&&!S.skyBg){x.fillStyle=S.bgCol;x.fillRect(0,0,w,h);}else if(!tr){const g=x.createLinearGradient(0,0,0,h);g.addColorStop(0,S.top);g.addColorStop(.55,S.mid);g.addColorStop(1,S.bot);x.fillStyle=g;x.fillRect(0,0,w,h);}
   x.drawImage(full,0,0);
  }catch(err){console.error(err);showModal('Export failed','Try a smaller size or lower supersampling.');out=null;}
  tc.visible=vis;boneGrp.visible=bv;gridM.visible=gdv;lightGrp.visible=lgv;scene.background=bgS;sun.shadow.mapSize.set(prevMap,prevMap);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null;}
  onResize();busy=false;if(!out)return null;
- const blob=await new Promise(r=>out.toBlob(r,'image/png'));return {blob,name:fname(),note};}
+ const blob=await new Promise(r=>out.toBlob(r,['image/png','image/webp','image/jpeg'][fm],.95));return {blob,name:fname(['png','webp','jpg'][fm]),note};}
 async function putBlob(blob,name,note){
  try{const dl=await claude.use('downloads');if(dl){await dl.save({filename:name,data:blob});toast('Saved '+name+(note||''));return true;}}catch(e){if(e&&e.code==='declined')return false;}
  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();toast('Exported '+name+(note||''));return true;}
-async function doExport(){const r=await renderPng();if(!r)return;await putBlob(r.blob,r.name,r.note);}
+async function doExport(){const r=await renderPng(undefined,undefined,+S.fmt||0);if(!r)return;await putBlob(r.blob,r.name,r.note);}
 async function doSplit(){const sh={},a=await renderPng('model',sh);if(!a)return;const b=await renderPng('shadow',sh);if(!b)return;
  const st=a.name.replace(/\.png$/,'');
  if(!(await putBlob(a.blob,st+'-model.png',a.note)))return;
