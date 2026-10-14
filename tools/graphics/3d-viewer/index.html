@@ -140,7 +140,7 @@ button.pill{border-radius:var(--radius-full)}
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
 <script>
 const $=s=>document.querySelector(s), coarse=matchMedia('(pointer:coarse)').matches, IC='https://raw.githubusercontent.com/nako-hikari/assets/main/ui/';
-const S={az:35,el:45,sunI:3.2,sunCol:'#fff3dd',shadows:true,ground:false,dyn:true,dynK:.5,sunOn:true,ambOn:true,sunDisc:1,hlim:0,rMin:0,mMul:1,emiMul:1,fmt:0,shOp:.55,shSoft:3,shRes:2048,env:1,exposure:1,
+const S={az:35,el:45,sunI:3.2,sunCol:'#fff3dd',shadows:true,ground:false,dyn:true,dynK:.5,poseDelay:3,poseMirror:false,sunOn:true,ambOn:true,sunDisc:1,hlim:0,rMin:0,mMul:1,emiMul:1,fmt:0,shOp:.55,shSoft:3,shRes:2048,env:1,exposure:1,
  top:'#4f93ff',mid:'#bfdcff',bot:'#dfe6ee',
  rim:false,rimI:2.5,rimCol:'#a8ccff',rimAngle:0,rimEl:25,fill:.35,
  bloom:false,bStr:.7,bRad:.5,bThr:1,bSm:.1,
@@ -224,7 +224,7 @@ const BT={open:new Set(),q:''};let treeEl=null,modelObj=null;
 let bones=[],bmesh=[],selBone=null,skelH=null,boneSel=null;const boneGrp=new THREE.Group();scene.add(boneGrp);
 const mkGeo=new THREE.SphereGeometry(1,10,8),mkMat=new THREE.MeshBasicMaterial({color:0x38e8ff,depthTest:false,transparent:true,opacity:.75}),mkSel=new THREE.MeshBasicMaterial({color:0xff9a1f,depthTest:false,transparent:true,opacity:1}),mkLock=new THREE.MeshBasicMaterial({color:0x8a8f99,depthTest:false,transparent:true,opacity:.28});
 function buildBones(obj){boneGrp.clear();bmesh=[];bones=[];skelH=null;selBone=null;
- obj.traverse(o=>{if(o.isBone){bones.push(o);o.userData.rest={p:o.position.clone(),q:o.quaternion.clone(),s:o.scale.clone()};}});
+ obj.traverse(o=>{if(o.isBone){bones.push(o);if(!o.userData.rest)o.userData.rest={p:o.position.clone(),q:o.quaternion.clone(),s:o.scale.clone()};}});
  bones.forEach(b=>{const m=new THREE.Mesh(mkGeo,mkMat);m.renderOrder=999;m.userData.bone=b;boneGrp.add(m);bmesh.push(m);});
  if(bones.length){skelH=new THREE.SkeletonHelper(obj);const m=skelH.material;m.vertexColors=false;m.color.set(0x38e8ff);m.depthTest=false;m.transparent=true;m.opacity=.35;skelH.renderOrder=998;skelH.frustumCulled=false;boneGrp.add(skelH);}
  BT.open.clear();BT.q='';bones.forEach(x=>{if(!(x.parent&&x.parent.isBone))BT.open.add(x);});
@@ -518,7 +518,7 @@ function setObject(obj){
  {let tris=0,vs=0,ms=0,sk=0,mt=0;const tx=new Set();obj.traverse(o=>{if(!o.isMesh)return;ms++;if(o.isSkinnedMesh)sk++;const ge=o.geometry,p=ge&&ge.attributes.position;if(p){vs+=p.count;tris+=ge.index?ge.index.count/3:p.count/3;}
   [].concat(o.material).forEach(m=>{for(const kk in m){const t=m[kk];if(t&&t.isTexture&&!tx.has(t)){tx.add(t);const im=t.image;if(im&&im.width)mt=Math.max(mt,im.width,im.height);}}});});
  INFO={tris:Math.round(tris),verts:vs,meshes:ms,skinned:sk,tex:tx.size,maxTex:mt?mt+' px':'-',size:[sz.x,sz.y,sz.z].map(v=>v.toFixed(3)).join(' × ')};}
- const g=new THREE.Group(); g.add(obj); g.scale.setScalar(k); g.position.set(-c.x*k,-b.min.y*k,-c.z*k); pivot.add(g);buildBones(obj);attachRoot();
+ const g=new THREE.Group(); g.add(obj); g.scale.setScalar(k); g.position.set(-c.x*k,-b.min.y*k,-c.z*k); pivot.add(g);obj.userData.grp=g;buildBones(obj);attachRoot();
  Object.assign(S,{oscale:1,roty:0,lift:0}); syncUI(); apply(); applyEnvI(); fit(); $('#hint').style.display='none';}
 const BLOBS={};
 {const c=URL.createObjectURL.bind(URL);URL.createObjectURL=b=>{const u=c(b);BLOBS[u]=b;return u;};
@@ -587,15 +587,43 @@ async function buildPMX(buf,getTex,miss){
  const mesh=new THREE.SkinnedMesh(geo,mats);mesh.name=g.name+'_mesh';mesh.frustumCulled=false;mesh.castShadow=mesh.receiveShadow=true;
  g.add(mesh);g.updateMatrixWorld(true);mesh.bind(new THREE.Skeleton(bs));
  return g;}
+let SESS=null,MODELS={},curModel=null;
+const isModel=n=>/\.(glb|gltf|fbx|pmx)$/i.test(n);
+function saveModelState(){if(!curModel||!MODELS[curModel]||!modelObj)return;
+ MODELS[curModel].st={MATS,OV,selMat,hu:HIST.u,hr:HIST.r,INFO,g:modelObj.userData.grp||modelObj.parent,pp:pivot.position.clone(),pr:pivot.rotation.clone(),ps:pivot.scale.clone(),so:{oscale:S.oscale,roty:S.roty,lift:S.lift},sb:bones.indexOf(selBone),cp:camera.position.clone(),ct:controls.target.clone()};}
+function restoreModel(name){const m=MODELS[name],st=m.st,obj=m.obj;
+ MATS=st.MATS;OV=st.OV;selMat=st.selMat;mixer=null;act=null;clips=[];modelObj=obj;HIST.u=st.hu;HIST.r=st.hr;updHist();INFO=st.INFO;
+ pivot.clear();pivot.add(st.g);pivot.position.copy(st.pp);pivot.rotation.copy(st.pr);pivot.scale.copy(st.ps);pivot.updateMatrixWorld(true);
+ buildBones(obj);selBone=st.sb>=0?bones[st.sb]:null;attachRoot();
+ Object.assign(S,st.so);camera.position.copy(st.cp);controls.target.copy(st.ct);controls.update();
+ syncUI();apply();applyEnvI();applyMats();setAnims(obj,m.anims);updShadow();
+ modelName=name;curModel=name;refreshBoneUI();$('#hint').style.display='none';dirty=true;}
+async function openModel(name){if(!SESS||busy||name===curModel)return;
+ const f=SESS.files.find(x=>x.name===name);if(!f)return;
+ saveModelState();
+ if(MODELS[name]&&MODELS[name].st){restoreModel(name);toast('Showing '+name);}
+ else await loadMain(f,SESS.files,SESS.img);
+ if(cur==='Models'&&!$('#panel').hidden)build();}
+function showTab(n){cur=n;[...$('#tabs').children].forEach(x=>x.classList.toggle('on',x.textContent===n));$('#panel').hidden=false;$('#gear').classList.add('on');$('#app').classList.add('with-panel');build();}
+function modelsUI(b){const e=document.createElement('div');e.className='note';
+ if(!SESS||SESS.models.length<2){e.textContent='Open a zip or select several files that contain more than one model, and they will be listed here. Switching keeps your lighting and settings, and each model keeps its own pose, position, rotation and material changes.';b.appendChild(e);return;}
+ e.textContent='Tap a model to show it. Models you already opened keep their pose, position, rotation, hidden materials and edits.';b.appendChild(e);
+ SESS.models.forEach(f=>{const r=document.createElement('div');r.className='row';r.style.minHeight='42px';const nm=document.createElement('label');nm.style.cssText='flex:1;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:'+(f.name===curModel?'var(--accent-light)':'var(--text-main)');
+  const kb=(f.size/1024),sz=kb>1024?(kb/1024).toFixed(2)+' MB':Math.round(kb)+' KB';nm.textContent=f.name+'  ('+sz+')';nm.onclick=()=>openModel(f.name);
+  const bt=document.createElement('button');bt.className=(f.name===curModel?'primary':'secondary')+' interactive';bt.style.minHeight='34px';bt.textContent=f.name===curModel?'Showing':(MODELS[f.name]?'Switch':'Load');bt.onclick=()=>openModel(f.name);r.append(nm,bt);b.appendChild(r);});}
 async function loadFiles(list){
  toast('Reading files…');let files;try{files=await expand(list);}catch(e){return showModal('Zip error','The zip file could not be opened.');}
- const main=files.find(f=>/\.(glb|gltf|fbx|pmx)$/i.test(f.name));
- if(!main)return showModal('No model found','Choose a .glb, .gltf, .fbx or .pmx file, or a .zip that contains one.');
+ const models=files.filter(f=>isModel(f.name));
+ if(!models.length)return showModal('No model found','Choose a .glb, .gltf, .fbx or .pmx file, or a .zip that contains one.');
+ for(const k in MEM)delete MEM[k];const img={};
+ try{for(const f of files){MEM[f.name]=await rd(f,'readAsArrayBuffer');if(/\.(png|jpe?g|webp|bmp|gif)$/i.test(f.name))img[f.name]=await rd(f,'readAsDataURL');}}catch(e){return showModal('Read error','The files could not be read.');}
+ SESS={files,img,models};MODELS={};curModel=null;
+ if(models.length>1){showTab('Models');toast('Choose a model to show');return;}
+ await loadMain(models[0],files,img);}
+async function loadMain(main,files,img){
  toast('Loading '+main.name+'…');
  const wd=setTimeout(()=>toast('Still parsing… (textures may be blocked)'),8000);
  try{
-  for(const k in MEM)delete MEM[k];const img={};
-  for(const f of files){MEM[f.name]=await rd(f,'readAsArrayBuffer');if(/\.(png|jpe?g|webp|bmp|gif)$/i.test(f.name))img[f.name]=await rd(f,'readAsDataURL');}
   if(/\.gltf$/i.test(main.name)){let j;try{j=JSON.parse(new TextDecoder().decode(MEM[main.name]));}catch(e){}
    if(j){const miss=[...(j.buffers||[]),...(j.images||[])].map(x=>x.uri).filter(u=>u&&!u.startsWith('data:')).map(u=>decodeURIComponent(u.split('?')[0].split('/').pop())).filter(n=>!MEM[n]);
     if(miss.length){clearTimeout(wd);return showModal('Missing files','The model needs: '+[...new Set(miss)].slice(0,4).join(', ')+'. Select them together with the .gltf, or put everything in a .zip.');}}}
@@ -615,7 +643,7 @@ async function loadFiles(list){
    else{const k=byLow[n.toLowerCase()],cv=k&&/\.tga$/i.test(k)&&MEM[k]?decodeTGA(MEM[k]):null;if(cv)fin(cv);else no();}};
   mgr.addHandler(/\.tga$/i,{load(u){const t=new THREE.Texture();fillTex(t,nameOf(u));return t;}});
   const fail=e=>{clearTimeout(wd);console.error(e);showModal('Could not load',String(e&&e.message||(typeof e==='string'&&e)||'The file could not be read.'));};
-  const ok=(o,an)=>{clearTimeout(wd);modelName=main.name;setObject(o);setAnims(o,an||o.animations);toast('Loaded '+main.name+(bones.length?', '+bones.length+' bones. Tap Bones to pose':''));};
+  const ok=(o,an)=>{clearTimeout(wd);modelName=main.name;setObject(o);MODELS[main.name]={obj:o,anims:an||o.animations};curModel=main.name;setAnims(o,an||o.animations);if(cur==='Models'&&!$('#panel').hidden)build();toast('Loaded '+main.name+(bones.length?', '+bones.length+' bones. Tap Bones to pose':''));};
   const getTex=async n=>{const base=nameOf(n),k=byLow[base.toLowerCase()]||byStem[stemOf(base)];if(!k)return null;
    const fin=t=>{t.encoding=THREE.sRGBEncoding;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.needsUpdate=true;return t;};
    if(/\.tga$/i.test(k)){const cv=MEM[k]?decodeTGA(MEM[k]):null;return cv?fin(new THREE.CanvasTexture(cv)):null;}
@@ -670,6 +698,78 @@ function setView(x,y,z){const d=camera.position.distanceTo(controls.target);came
 function saveView(i){VIEWS[i]={p:camera.position.toArray(),t:controls.target.toArray(),f:S.fov};try{localStorage.setItem('nako-views',JSON.stringify(VIEWS));}catch(e){}toast('View '+(i+1)+' saved');}
 function goView(i){const v=VIEWS[i];if(!v)return toast('View '+(i+1)+' is empty');camera.position.fromArray(v.p);controls.target.fromArray(v.t);S.fov=v.f;syncUI();apply();controls.update();dirty=true;}
 const LOOKK=['sunOn','ambOn','sunDisc','hlim','rMin','mMul','emiMul','lightMul','sunK','az','el','sunI','sunCol','shadows','ground','shOp','shSoft','env','exposure','top','mid','bot','rim','rimI','rimCol','rimAngle','rimEl','fill','fillCol','fillAng','fillEl','amb','ambCol','p1','p1Col','p1I','p1Az','p1El','p1D','p2','p2Col','p2I','p2Az','p2El','p2D','sunFollow','envRot','bloom','bStr','bRad','bThr','bSm','bRange','bWide','bMode','bCol','bCol2','bAmt','world','contrast','sat','vig','bgCol','skyBg','tone','shade','lightMode','fog','fogHz','fogCol','fogStart','fogEnd','floor','floorCol','floorSize'];
+const nrmN=t=>String(t||'').normalize('NFKC').toLowerCase().replace(/[\s_.\-・]/g,'');
+const ROLE={hips:['下半身','lowerbody','hips','pelvis'],spine:['上半身','upperbody','spine'],chest:['上半身2','upperbody2','chest','spine1','spine2'],neck:['首','neck'],head:['頭','head']};
+const LIMB={arm:['腕','arm','upperarm'],elbow:['ひじ','肘','elbow','lowerarm','forearm'],wrist:['手首','wrist','hand'],leg:['足','leg','upperleg','thigh','upleg'],knee:['ひざ','膝','knee','lowerleg','shin','calf'],ankle:['足首','ankle','foot'],toe:['つま先','toe','toes','toebase','足先ex'],fing:['人指１','人指1','人差指','人差し指','indexfinger1','index1','indexproximal','中指１','中指1','middle1','middlefinger1']};
+const SIDE={L:['左','left','l'],R:['右','right','r']};
+function poseFromLandmarks(W,opt){
+ if(!bones.length||!modelObj)return toast('This model has no bones');
+ const V=THREE.Vector3,Q=THREE.Quaternion,idx=new Map();bones.forEach(b=>{const k=nrmN(b.name);if(k&&!idx.has(k))idx.set(k,b);});
+ const find=(key,sd)=>{if(!sd){for(const a of ROLE[key]){const t=idx.get(nrmN(a));if(t)return t;}return null;}
+  for(const a of LIMB[key])for(const t of SIDE[sd])for(const c of [t+a,a+t]){const h=idx.get(nrmN(c));if(h)return h;}return null;};
+ const grp=modelObj.userData.grp||modelObj.parent;grp.updateMatrixWorld(true);
+ const gq=new Q(),_p=new V(),_s=new V();grp.matrixWorld.decompose(_p,gq,_s);
+ const sx=opt&&opt.mirror?-1:1,P=i=>new V(sx*W[i].x,-W[i].y,-W[i].z).applyQuaternion(gq);
+ const free=bones.filter(b=>!b.userData.locked),before=snapAll(free);
+ free.forEach(restore);modelObj.updateMatrixWorld(true);
+ const wq=o=>{const q=new Q();o.matrixWorld.decompose(_p,q,_s);return q;},wp=o=>new V().setFromMatrixPosition(o.matrixWorld);
+ const setWQ=(b,q)=>{const pq=b.parent?wq(b.parent):new Q();b.quaternion.copy(pq.invert().multiply(q));b.updateMatrixWorld(true);};
+ const aim=(b,c,t)=>{if(!b||!c||b.userData.locked)return false;const cu=wp(c).sub(wp(b));if(cu.lengthSq()<1e-12||t.lengthSq()<1e-12)return false;setWQ(b,new Q().setFromUnitVectors(cu.normalize(),t.clone().normalize()).multiply(wq(b)));return true;};
+ const twist=(b,ax,c,t)=>{if(!b||b.userData.locked||!c||!t)return false;const a=ax.clone().normalize(),pc=c.clone().addScaledVector(a,-c.dot(a)),pt=t.clone().addScaledVector(a,-t.dot(a));if(pc.lengthSq()<1e-10||pt.lengthSq()<1e-10)return false;pc.normalize();pt.normalize();
+  setWQ(b,new Q().setFromAxisAngle(a,Math.atan2(new V().crossVectors(pc,pt).dot(a),pc.dot(pt))).multiply(wq(b)));return true;};
+ const mid=(a,b)=>P(a).add(P(b)).multiplyScalar(.5);
+ const hipM=mid(23,24),shM=mid(11,12),earM=mid(7,8);
+ const B={hips:find('hips'),spine:find('spine'),chest:find('chest'),neck:find('neck'),head:find('head')};
+ ['L','R'].forEach(sd=>{B[sd]={};for(const k in LIMB)B[sd][k]=find(k,sd);});
+ const headRest=B.head?wq(B.head):null;
+ const miss=[],done=new Set(),mark=(ok,n)=>{if(ok)done.add(n);else miss.push(n);};
+ if(B.hips&&B.L.leg&&B.R.leg)mark(twist(B.hips,new V(0,1,0).applyQuaternion(gq),wp(B.L.leg).sub(wp(B.R.leg)),P(23).sub(P(24))),'hips');
+ if(B.spine){const ch=B.chest||B.neck||B.head,ax=shM.clone().sub(hipM);mark(aim(B.spine,ch,ax),'spine');
+  if(B.L.arm&&B.R.arm)twist(B.spine,ax,wp(B.L.arm).sub(wp(B.R.arm)),P(11).sub(P(12)));}
+ else miss.push('spine');
+ if(B.neck&&B.head)mark(aim(B.neck,B.head,earM.clone().sub(shM)),'neck');else miss.push('neck');
+ if(B.head&&headRest){const ex=P(7).sub(P(8)).normalize(),f0=P(0).sub(earM),f=f0.addScaledVector(ex,-f0.dot(ex));
+  if(f.lengthSq()>1e-10){f.normalize();const ey=new V().crossVectors(f,ex).normalize(),qb=new Q().setFromRotationMatrix(new THREE.Matrix4().makeBasis(ex,ey,f)),rr=gq.clone().invert().multiply(headRest);setWQ(B.head,qb.multiply(rr));done.add('head');}else miss.push('head');}
+ else miss.push('head');
+ const LM={L:{sh:11,el:13,wr:15,ix:19,hp:23,kn:25,an:27,ft:31},R:{sh:12,el:14,wr:16,ix:20,hp:24,kn:26,an:28,ft:32}};
+ ['L','R'].forEach(sd=>{const b=B[sd],l=LM[sd],n=sd==='L'?'left ':'right ';
+  mark(aim(b.arm,b.elbow,P(l.el).sub(P(l.sh))),n+'arm');
+  mark(aim(b.elbow,b.wrist,P(l.wr).sub(P(l.el))),n+'elbow');
+  if(b.fing)mark(aim(b.wrist,b.fing,P(l.ix).sub(P(l.wr))),n+'wrist');
+  mark(aim(b.leg,b.knee,P(l.kn).sub(P(l.hp))),n+'leg');
+  mark(aim(b.knee,b.ankle,P(l.an).sub(P(l.kn))),n+'knee');
+  if(b.toe)mark(aim(b.ankle,b.toe,P(l.ft).sub(P(l.an))),n+'ankle');});
+ pushH(before,snapAll(free));syncAnchor();dirty=true;
+ toast(done.size?('Posed '+done.size+' parts'+(miss.length?'. Not matched: '+miss.slice(0,4).join(', ')+(miss.length>4?'...':''):'')):'No standard bones found on this model');
+ return {done:[...done],miss};}
+let PL=null;
+async function getPoseDetector(){if(PL)return PL;toast('Loading pose detector...');
+ const m=await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs');
+ const fs=await m.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
+ PL=await m.PoseLandmarker.createFromOptions(fs,{baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task'},runningMode:'IMAGE',numPoses:1});return PL;}
+async function poseFromImage(src){
+ if(!bones.length)return toast('This model has no bones');
+ try{const pl=await getPoseDetector();toast('Detecting pose...');const r=pl.detect(src);
+  if(!r.worldLandmarks||!r.worldLandmarks.length)return toast('No person found. Use a clear full-body picture.');
+  poseFromLandmarks(r.worldLandmarks[0],{mirror:S.poseMirror});}
+ catch(e){console.error(e);showModal('Pose detection failed','The detector could not load or run. It needs an internet connection the first time. '+String(e&&e.message||''));}}
+function poseFile(){const i=document.createElement('input');i.type='file';i.accept='image/*';
+ i.onchange=async()=>{const f=i.files&&i.files[0];if(!f)return;try{const u=await rd(f,'readAsDataURL'),im=new Image();im.onload=()=>poseFromImage(im);im.onerror=()=>toast('That picture could not be opened');im.src=u;}catch(e){toast('That picture could not be read');}};i.click();}
+function camPose(){
+ if(!bones.length)return toast('This model has no bones');
+ if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return toast('The camera is not available here');
+ const secs=+S.poseDelay||3,ov=document.createElement('div');
+ ov.style.cssText='position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.86);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:16px';
+ const v=document.createElement('video');v.playsInline=true;v.muted=true;v.autoplay=true;v.style.cssText='max-width:92vw;max-height:62vh;border-radius:12px;transform:scaleX(-1);background:#000';
+ const t=document.createElement('div');t.style.cssText='font-size:64px;font-weight:700;color:#fff;line-height:1';t.textContent='...';
+ const h=document.createElement('div');h.style.cssText='color:#ddd;font-size:14px;text-align:center';h.textContent='Step back so your whole body is in view';
+ const c=document.createElement('button');c.className='secondary interactive';c.textContent='Cancel';
+ ov.append(v,t,h,c);document.body.appendChild(ov);
+ let st=null,iv=0;const end=()=>{clearInterval(iv);if(st)st.getTracks().forEach(x=>x.stop());ov.remove();};c.onclick=end;
+ navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:1280},height:{ideal:720}},audio:false}).then(m=>{st=m;v.srcObject=m;let n=secs;t.textContent=n;
+  iv=setInterval(()=>{n--;if(n>0){t.textContent=n;return;}clearInterval(iv);
+   const cv=document.createElement('canvas');cv.width=v.videoWidth||640;cv.height=v.videoHeight||480;cv.getContext('2d').drawImage(v,0,0,cv.width,cv.height);end();poseFromImage(cv);},1000);})
+ .catch(()=>{end();toast('The camera was blocked or not found');});}
 const POSES=[null,null,null];
 function poseUI(b){const sv=i=>{if(!bones.length)return toast('This model has no bones');POSES[i]=bones.map(x=>({n:x.name,p:x.position.clone(),q:x.quaternion.clone(),s:x.scale.clone()}));toast('Pose '+(i+1)+' saved');build();};
  const ld=i=>{const P=POSES[i];if(!P)return toast('Pose '+(i+1)+' is empty');if(P.length!==bones.length)return toast('Pose does not match this model');const l=bones.filter(x=>!x.userData.locked),bf=snapAll(l);
@@ -731,7 +831,7 @@ const TABS={
   sel('bMode','Glow color',[[0,'Natural (scene colors)'],[1,'Tint (multiply)'],[2,'Solid color'],[3,'Two-tone (dim → hot)']]),['c','bCol','Glow color'],['c','bCol2','Hot color (two-tone)'],['r','bAmt','Color strength',0,1,.01],
   ['n','Range makes the glow bigger without changing how fast it fades. Natural keeps the model colors; Tint multiplies them; Solid paints all glow in your color; Two-tone goes from the first color in dim areas to the hot color in the brightest.']],
  Fog:[['t','fog','Fog'],['t','fogHz','Match horizon color'],['c','fogCol','Fog color'],['r','fogStart','Start (object sizes)',-3,4,.05],['r','fogEnd','Full fog at',-2,10,.05],['n','Distance fog from the camera: parts of the model farther away fade toward the fog color. Lower "Full fog at" for thicker haze.']],
- Bones:[['t','showBones','Show bone points'],['t','boneOnly','Only selected + neighbors'],['r','markSize','Point size (px)',2,20,1],['r','gizmo','Gizmo size',.4,2,.05],['f',boneUI],['f',poseUI],
+ Bones:[['t','showBones','Show bone points'],['t','boneOnly','Only selected + neighbors'],['r','markSize','Point size (px)',2,20,1],['r','gizmo','Gizmo size',.4,2,.05],['f',boneUI],['f',poseUI],['t','poseMirror','Mirror image (for selfie-flipped photos)'],sel('poseDelay','Camera countdown',[[3,'3 seconds'],[4,'4 seconds'],[5,'5 seconds']]),['b',[['Pose from photo',()=>poseFile(),'pri'],['Pose from camera',()=>camPose()]]],['n','Pose from photo or camera fits a standard MMD style skeleton (names like 上半身, 左腕, 左ひじ, 左足, or English Left Arm style names) to a full-body picture. It is a rough starting pose with no finger or twist detection, and it resets unlocked bones first. Undo brings back the previous pose. It needs internet the first time to download the detector.'],
   ['b',[['Parent',()=>{if(selBone&&selBone.parent&&selBone.parent.isBone)pickBone(selBone.parent);}],['Child',()=>{const c=selBone&&selBone.children.find(x=>x.isBone);if(c)pickBone(c);}],['Root',()=>home()]]],
   sel('mirAxis','Mirror across',[[0,'X axis (left / right)'],[1,'Y axis'],[2,'Z axis']]),['t','mirKids','Include child bones'],
   ['b',[['Selected to opposite',()=>mirrorRun('sel')],['Left to right',()=>mirrorRun('lr')],['Right to left',()=>mirrorRun('rl')],['Swap sides',()=>mirrorRun('swap')]]],
@@ -758,6 +858,7 @@ Object.assign(TABS,{
   ['b',[['Reset look and lighting',()=>{LOOKK.forEach(k=>{S[k]=DEF[k];});syncUI();apply();}]]],
   ['n','Per-material roughness, metalness, reflection and emissive controls are in the Materials tab.']]});
 Object.assign(TABS,{
+ Models:[['f',modelsUI]],
  Stage:[sel('floor','Floor',[[0,'Off (shadow only)'],[1,'Solid disc'],[2,'Grid']]),['c','floorCol','Floor color'],['r','floorSize','Floor size',1,15,.1],['t','checker','Transparency checkerboard (preview only)'],
   sel('disp','Display mode',[[0,'Normal'],[1,'Clay (no textures)'],[2,'Wireframe'],[3,'Normals']]),['c','wireCol','Wireframe color'],
   ['n','The floor sits under the model and receives the ground shadow. Display modes are for inspecting the model; switch back to Normal to render with textures.']],
