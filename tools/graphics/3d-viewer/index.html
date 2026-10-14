@@ -140,9 +140,9 @@ button.pill{border-radius:var(--radius-full)}
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
 <script>
 const $=s=>document.querySelector(s), coarse=matchMedia('(pointer:coarse)').matches, IC='https://raw.githubusercontent.com/nako-hikari/assets/main/ui/';
-const S={az:35,el:45,sunI:3.2,sunCol:'#fff3dd',shadows:true,ground:true,shOp:.55,shSoft:3,shRes:2048,env:1,exposure:1,
+const S={az:35,el:45,sunI:3.2,sunCol:'#fff3dd',shadows:true,ground:false,dyn:true,dynK:.5,shOp:.55,shSoft:3,shRes:2048,env:1,exposure:1,
  top:'#4f93ff',mid:'#bfdcff',bot:'#dfe6ee',
- rim:true,rimI:2.5,rimCol:'#a8ccff',rimAngle:0,rimEl:25,fill:.35,
+ rim:false,rimI:2.5,rimCol:'#a8ccff',rimAngle:0,rimEl:25,fill:.35,
  bloom:false,bStr:.7,bRad:.5,bThr:1,bSm:.1,
  lightMul:1,sunK:6500,mirAxis:0,mirKids:true,world:true,contrast:1,sat:1,vig:0,bgCol:'#000000',hdri:false,hdriBg:false,shade:0,tone:0,softT:false,dbl:false,slow:false,slowK:.2,local:false,showBones:false,markSize:6,boneOnly:false,gizmo:.8,fog:false,fogHz:false,fogCol:'#c9dcf5',fogStart:-.4,fogEnd:3,skyBg:true,lightMode:0,fov:40,smooth:0,auto:false,quality:coarse?.7:1,
  oscale:1,roty:0,lift:0,size:2048,ss:2,transp:true,cropMode:1,cropPad:4,cropCut:1,
@@ -367,9 +367,12 @@ function buildEnv(){
  const et=envSrc();const t=et?pmrem.fromEquirectangular(et):pmrem.fromScene(envScene,.02); if(envRT)envRT.dispose(); envRT=t; scene.environment=S.world?t.texture:null; dirty=true;}
 
 
-function onResize(){const w=view.clientWidth||1,h=view.clientHeight||1,pr=Math.min(devicePixelRatio,2)*S.quality;
+let dynF=1,dynT=0;
+function dynBump(){if(!S.dyn)return;if(dynF===1){dynF=Math.max(.15,+S.dynK||.5);onResize();}clearTimeout(dynT);dynT=setTimeout(()=>{dynF=1;onResize();},240);}
+function onResize(){const w=view.clientWidth||1,h=view.clientHeight||1,pr=Math.min(devicePixelRatio,2)*S.quality*dynF;
  renderer.setPixelRatio(pr);renderer.setSize(w,h);composer.setPixelRatio(pr);composer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();dirty=true;}
 new ResizeObserver(onResize).observe(view);
+controls.addEventListener('change',dynBump);tc.addEventListener('change',()=>{if(tc.dragging)dynBump();});
 const _lc=new THREE.OrthographicCamera(-1,1,1,-1,.1,10),_lv=new THREE.Vector3(),_lp=new THREE.Vector3();
 function updShadow(){const b=new THREE.Box3().setFromObject(pivot); if(b.isEmpty())return;
  const sp=b.getBoundingSphere(new THREE.Sphere()); R=Math.max(sp.radius,.05);ctr.copy(sp.center); const D=R*6,s=sp.center;
@@ -724,7 +727,7 @@ const TABS={
  Object:[['r','oscale','Scale',.05,5,.01],['r','roty','Rotate Y °',-180,180,1],['r','lift','Height',-3,3,.01],
   ['b',[['Reset object',()=>{const b=snapAll([pivot]);Object.assign(S,{oscale:1,roty:0,lift:0});pivot.position.set(0,0,0);pivot.rotation.set(0,0,0);pivot.scale.set(1,1,1);syncUI();apply();pushH(b,snapAll([pivot]));}],['Fit view',fit]]],
   ['n','Tip: use Move / Rotate / Scale in the top bar to drag the object directly (W / E / R keys).']],
- Camera:[['r','fov','Field of view °',10,110,1],['r','smooth','Smoothing (0 = no slide)',0,.97,.01],['t','auto','Auto-rotate'],['r','autoSpd','Auto-rotate speed',-10,10,.1],['r','quality','Preview quality',.3,2,.05],
+ Camera:[['r','fov','Field of view °',10,110,1],['r','smooth','Smoothing (0 = no slide)',0,.97,.01],['t','auto','Auto-rotate'],['r','autoSpd','Auto-rotate speed',-10,10,.1],['r','quality','Preview quality',.3,2,.05],['t','dyn','Dynamic resolution'],['r','dynK','Dynamic resolution scale',.15,1,.05],
   sel('shRes','Shadow map',[[512,'512 (fast)'],[1024,'1024'],[2048,'2048'],[4096,'4096']]),['b',[['Fit view',fit],['Front',()=>setView(0,0,1)],['Back',()=>setView(0,0,-1)],['Left',()=>setView(-1,0,0)]]],['b',[['Right',()=>setView(1,0,0)],['Top',()=>setView(0,1,.001)],['Bottom',()=>setView(0,-1,.001)],['3/4',()=>setView(1,.55,1)]]],
   ['b',[['Save view 1',()=>saveView(0)],['Save view 2',()=>saveView(1)],['Save view 3',()=>saveView(2)]]],['b',[['Go 1',()=>goView(0)],['Go 2',()=>goView(1)],['Go 3',()=>goView(2)]]],
   ['r','recDur','Turntable length (s)',2,30,1],['b',[['Record turntable video',()=>recordTurn(),'pri']]],
@@ -732,7 +735,7 @@ const TABS={
  About:[['f',aboutUI]],
  Export:[sel('size','Size (long side)',[[1024,'1024 px'],[1920,'1920 px'],[2048,'2048 px'],[3072,'3072 px'],[4096,'4096 px'],[6000,'6000 px']]),
   sel('ss','Supersampling',[[1,'Off'],[2,'2× good'],[3,'3×'],[4,'4× best']]),['t','transp','Transparent background'],sel('cropMode','Crop',[[0,'Off (screen framing)'],[1,'Tight to object (no glow)'],[2,'Every pixel (glow + shadow)']]),['r','cropPad','Crop margin %',0,20,1],['r','cropCut','Glow cutoff % (0 = every pixel)',0,10,.1],
-  ['b',[['Export PNG',()=>doExport(),'pri'],['Copy to clipboard',()=>doCopy()]]],['n','Uses the current view, lighting, shadows and bloom. Every pixel mode keeps the glow and shadow, down to the glow cutoff. Size is clamped to your device limits.']]};
+  ['b',[['Export PNG',()=>doExport(),'pri'],['Copy to clipboard',()=>doCopy()]]],['b',[['Export model + shadow (2 images)',()=>doSplit()]]],['n','Model + shadow saves two transparent PNGs with the same framing: one with only the model, one with only the ground shadow, so you can layer them. Uses the current view, lighting, shadows and bloom. Every pixel mode keeps the glow and shadow, down to the glow cutoff. Size is clamped to your device limits.']]};
 Object.assign(TABS,{
  Stage:[sel('floor','Floor',[[0,'Off (shadow only)'],[1,'Solid disc'],[2,'Grid']]),['c','floorCol','Floor color'],['r','floorSize','Floor size',1,15,.1],['t','checker','Transparency checkerboard (preview only)'],
   sel('disp','Display mode',[[0,'Normal'],[1,'Clay (no textures)'],[2,'Wireframe'],[3,'Normals']]),['c','wireCol','Wireframe color'],
@@ -805,37 +808,58 @@ function scanRect(v,tight){const a=v.w/v.h,L=tight?1000:1400,pw=Math.round(a>=1?
 let busy=false,modelName='model';
 function fname(ext){const base=(modelName||'model').replace(/\.[^.]+$/,'').replace(/[^\w-]+/g,'_').replace(/^_+|_+$/g,'').slice(0,30)||'model',d=new Date(),p=n=>String(n).padStart(2,'0');
  return 'nako-'+base+'-'+p(d.getDate())+p(d.getMonth()+1)+d.getFullYear()+'-'+String(Math.floor(Math.random()*10000)).padStart(4,'0')+'.'+(ext||'png');}
-async function renderPng(){
- if(busy)return null;busy=true;toast('Rendering...');await new Promise(r=>setTimeout(r,60));
+function layerState(lay){const gv=ground.visible,fv=floorM.visible,gd=gridM.visible,bb=bloomPass.enabled,sg=S.ground,sc=sun.castShadow,st=S.transp,ms=[];
+ S.transp=true;if(lay!=='model'){S.ground=true;sun.castShadow=true;}
+ ground.visible=lay!=='model';floorM.visible=false;gridM.visible=false;
+ if(lay==='shadow'){bloomPass.enabled=false;pivot.traverse(o=>{if(o.material)[].concat(o.material).forEach(m=>{ms.push([m,m.colorWrite,m.depthWrite]);m.colorWrite=false;m.depthWrite=false;});});}
+ if(lay!=='model')updShadow();
+ return()=>{ground.visible=gv;floorM.visible=fv;gridM.visible=gd;bloomPass.enabled=bb;S.ground=sg;sun.castShadow=sc;S.transp=st;ms.forEach(a=>{a[0].colorWrite=a[1];a[0].depthWrite=a[2];});updShadow();};}
+async function renderPng(L,sh){
+ if(busy)return null;busy=true;clearTimeout(dynT);dynF=1;toast('Rendering...');await new Promise(r=>setTimeout(r,60));
  const FW=view.clientWidth||1,FH=view.clientHeight||1,asp=FW/FH,maxDim=Math.min(renderer.capabilities.maxTextureSize,8192),maxPx=coarse?14e6:36e6;
  const prevMap=sun.shadow.mapSize.x,hi=Math.min(4096,renderer.capabilities.maxTextureSize),vis=tc.visible,bv=boneGrp.visible,bgS=scene.background,gdv=gridM.visible,lgv=lightGrp.visible;let out=null,note='';
  try{
-  tc.visible=false;boneGrp.visible=false;gridM.visible=false;lightGrp.visible=false;scene.background=S.transp?null:bgS;
+  tc.visible=false;boneGrp.visible=false;gridM.visible=false;lightGrp.visible=false;scene.background=(S.transp||L)?null:bgS;
   if(S.shadows){sun.shadow.mapSize.set(hi,hi);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null;}}
   const dims=(L,a)=>a>=1?[L,L/a]:[L*a,L];
-  let rect=null,ar=asp;
-  if(+S.cropMode>0){const tight=+S.cropMode===1;let r=scanRect({x:-FW,y:-FH,w:3*FW,h:3*FH},tight);
-   if(r){const px=r.w*.05+FW*.01,py=r.h*.05+FH*.01,r2=scanRect({x:r.x-px,y:r.y-py,w:r.w+2*px,h:r.h+2*py},tight);if(r2)r=r2;
-    const mx=Math.max(r.w,r.h),m=(+S.cropPad/100)*mx+mx*.002;rect={x:r.x-m,y:r.y-m,w:r.w+2*m,h:r.h+2*m};ar=rect.w/rect.h;}}
-  let [w,h]=dims(+S.size,ar),s=+S.ss;const bad=()=>w*s>maxDim||h*s>maxDim||w*s*h*s>maxPx;
-  while(s>1&&bad())s--;let cut=false;while(bad()){w*=.9;h*=.9;cut=true;}
-  w=Math.round(w);h=Math.round(h);if(cut||s<+S.ss)note=' (reduced for device limits)';
-  const full=halve(shot(w,h,s,rect),w,h);
+  let rect=null,ar=asp,w,h,s;
+  if(sh&&sh.set){({rect,w,h,s,note}=sh);}
+  else{const r0=L?layerState('all'):null;
+   try{
+    if(+S.cropMode>0){const tight=+S.cropMode===1;let r=scanRect({x:-FW,y:-FH,w:3*FW,h:3*FH},tight);
+     if(r){const px=r.w*.05+FW*.01,py=r.h*.05+FH*.01,r2=scanRect({x:r.x-px,y:r.y-py,w:r.w+2*px,h:r.h+2*py},tight);if(r2)r=r2;
+      const mx=Math.max(r.w,r.h),m=(+S.cropPad/100)*mx+mx*.002;rect={x:r.x-m,y:r.y-m,w:r.w+2*m,h:r.h+2*m};ar=rect.w/rect.h;}}
+   }finally{r0&&r0();}
+   [w,h]=dims(+S.size,ar);s=+S.ss;const bad=()=>w*s>maxDim||h*s>maxDim||w*s*h*s>maxPx;
+   while(s>1&&bad())s--;let cut=false;while(bad()){w*=.9;h*=.9;cut=true;}
+   w=Math.round(w);h=Math.round(h);if(cut||s<+S.ss)note=' (reduced for device limits)';
+   if(sh)Object.assign(sh,{set:true,rect,w,h,s,note});}
+  const r1=L?layerState(L):null;let full;
+  try{full=halve(shot(w,h,s,rect),w,h);}finally{r1&&r1();}
   out=document.createElement('canvas');out.width=w;out.height=h;const x=out.getContext('2d');
-  if(!S.transp&&!S.skyBg){x.fillStyle=S.bgCol;x.fillRect(0,0,w,h);}else if(!S.transp){const g=x.createLinearGradient(0,0,0,h);g.addColorStop(0,S.top);g.addColorStop(.55,S.mid);g.addColorStop(1,S.bot);x.fillStyle=g;x.fillRect(0,0,w,h);}
+  const tr=S.transp||!!L;if(!tr&&!S.skyBg){x.fillStyle=S.bgCol;x.fillRect(0,0,w,h);}else if(!tr){const g=x.createLinearGradient(0,0,0,h);g.addColorStop(0,S.top);g.addColorStop(.55,S.mid);g.addColorStop(1,S.bot);x.fillStyle=g;x.fillRect(0,0,w,h);}
   x.drawImage(full,0,0);
  }catch(err){console.error(err);showModal('Export failed','Try a smaller size or lower supersampling.');out=null;}
  tc.visible=vis;boneGrp.visible=bv;gridM.visible=gdv;lightGrp.visible=lgv;scene.background=bgS;sun.shadow.mapSize.set(prevMap,prevMap);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null;}
  onResize();busy=false;if(!out)return null;
  const blob=await new Promise(r=>out.toBlob(r,'image/png'));return {blob,name:fname(),note};}
-async function doExport(){const r=await renderPng();if(!r)return;const {blob,name,note}=r;
- try{const dl=await claude.use('downloads');if(dl){await dl.save({filename:name,data:blob});toast('Saved '+name+note);return;}}catch(e){if(e&&e.code==='declined')return;}
- const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();toast('Exported '+name+note);}
+async function putBlob(blob,name,note){
+ try{const dl=await claude.use('downloads');if(dl){await dl.save({filename:name,data:blob});toast('Saved '+name+(note||''));return true;}}catch(e){if(e&&e.code==='declined')return false;}
+ const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();toast('Exported '+name+(note||''));return true;}
+async function doExport(){const r=await renderPng();if(!r)return;await putBlob(r.blob,r.name,r.note);}
+async function doSplit(){const sh={},a=await renderPng('model',sh);if(!a)return;const b=await renderPng('shadow',sh);if(!b)return;
+ const st=a.name.replace(/\.png$/,'');
+ if(!(await putBlob(a.blob,st+'-model.png',a.note)))return;
+ await new Promise(r=>setTimeout(r,500));
+ if(await putBlob(b.blob,st+'-shadow.png',b.note))toast('Saved model and shadow images');}
 async function doCopy(){
- if(!navigator.clipboard||!window.ClipboardItem)return showModal('Copy unavailable','This browser view cannot copy images. Use the PNG button to save instead.');
- const pr=renderPng().then(r=>{if(!r)throw new Error('busy');return r.blob;});
- try{await navigator.clipboard.write([new ClipboardItem({'image/png':pr})]);toast('Copied to clipboard');}
- catch(e){try{const bl=await pr;await navigator.clipboard.write([new ClipboardItem({'image/png':bl})]);toast('Copied to clipboard');}catch(e2){showModal('Copy blocked','The page was not allowed to use the clipboard here. Use the PNG button to save instead.');}}}
+ const can=navigator.clipboard&&window.ClipboardItem;
+ const pr=renderPng().then(r=>{if(!r)throw new Error('busy');return r;});
+ let r=null;
+ if(can){try{await navigator.clipboard.write([new ClipboardItem({'image/png':pr.then(x=>x.blob)})]);toast('Copied to clipboard');return;}catch(e){}}
+ try{r=await pr;}catch(e){return;}
+ if(can){try{await navigator.clipboard.write([new ClipboardItem({'image/png':r.blob})]);toast('Copied to clipboard');return;}catch(e){}}
+ await putBlob(r.blob,r.name,r.note);toast('Clipboard is blocked here, so the PNG was saved instead');}
 
 
 (function loop(){requestAnimationFrame(loop);const dt=Math.min(clk.getDelta(),.1);if(!tc.dragging&&tc.object===anchor)syncAnchor();controls.update();if(!recording)stepAnim(dt);if(envDirty){envDirty=false;buildEnv();}if(dirty&&!busy){dirty=false;scene.updateMatrixWorld();updBones();composer.render();}})();
