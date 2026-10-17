@@ -90,7 +90,7 @@ button.pill{border-radius:var(--radius-full)}
  <div class="bar">
   <div class="g"><button class="seg interactive" id="open"><img class="icon" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/folder.png" alt="">Open</button></div>
   <div class="g" id="modes"><button class="seg interactive on" data-m="translate">Move</button><button class="seg interactive" data-m="rotate">Rotate</button><button class="seg interactive" data-m="scale">Scale</button><button class="seg interactive" data-m="off">Off</button></div>
-  <div class="g"><button class="seg interactive" id="home" title="Select root (H)"><img class="icon" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/home.png" alt="">Root</button><button class="seg interactive" id="slow">Slow</button><button class="seg interactive" id="bonesBtn"><img class="icon" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/hand.png" alt="">Bones</button></div>
+  <div class="g"><button class="seg interactive" id="home" title="Select root (H)"><img class="icon" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/home.png" alt="">Root</button><button class="seg interactive" id="slow">Slow</button><button class="seg interactive" id="space" title="Gizmo space: world or local">World</button><button class="seg interactive" id="pivBtn" title="Move the pivot point of the model">Pivot</button><button class="seg interactive" id="bonesBtn"><img class="icon" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/hand.png" alt="">Bones</button></div>
   <div class="g"><button class="seg interactive dim" id="undo">Undo</button><button class="seg interactive dim" id="redo">Redo</button></div>
   <div class="sp"></div>
   <div class="g"><button class="seg interactive" id="gear"><img class="icon" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/settings.png" alt="">Settings</button><button class="seg interactive" id="copy"><img class="icon" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/copy.png" alt="">Copy</button><button class="seg interactive" id="quick"><img class="icon" src="https://raw.githubusercontent.com/nako-hikari/assets/main/ui/download.png" alt="">PNG</button></div>
@@ -140,7 +140,7 @@ button.pill{border-radius:var(--radius-full)}
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
 <script>
 const $=s=>document.querySelector(s), coarse=matchMedia('(pointer:coarse)').matches, IC='https://raw.githubusercontent.com/nako-hikari/assets/main/ui/';
-const S={az:35,el:45,sunI:3.2,sunCol:'#fff3dd',shadows:true,ground:false,dyn:true,dynK:.5,poseDelay:3,poseMirror:false,sunOn:true,ambOn:true,sunDisc:1,hlim:0,rMin:0,mMul:1,emiMul:1,fmt:0,shOp:.55,shSoft:3,shRes:2048,env:1,exposure:1,
+const S={az:35,el:45,sunI:3.2,sunCol:'#fff3dd',shadows:true,ground:false,dyn:true,dynK:.5,poseDelay:3,poseMirror:false,pivEdit:false,showPivot:false,mainOnly:false,headOn:true,headI:.5,headCol:'#ffffff',shSelf:true,shCast:true,shCol:'#000000',shBias:1,shNB:1,sunOn:true,ambOn:true,sunDisc:1,hlim:0,rMin:0,mMul:1,emiMul:1,fmt:0,shOp:.55,shSoft:3,shRes:2048,env:1,exposure:1,
  top:'#4f93ff',mid:'#bfdcff',bot:'#dfe6ee',
  rim:false,rimI:2.5,rimCol:'#a8ccff',rimAngle:0,rimEl:25,fill:.35,
  bloom:false,bStr:.7,bRad:.5,bThr:1,bSm:.1,
@@ -173,6 +173,7 @@ const sun=new THREE.DirectionalLight(0xffffff,3); sun.castShadow=true; sun.shado
 const rim=new THREE.DirectionalLight(0xffffff,2), fill=new THREE.DirectionalLight(0xffffff,.3);
 scene.add(sun,sun.target,rim,fill);
 const ambL=new THREE.AmbientLight(0xffffff,0);scene.add(ambL);
+const headL=new THREE.DirectionalLight(0xffffff,0);headL.castShadow=false;scene.add(headL,headL.target);
 const pl=[1,2].map(()=>{const L=new THREE.PointLight(0xffffff,0,0,1.2);scene.add(L);return L;});
 const lightGrp=new THREE.Group();lightGrp.visible=false;scene.add(lightGrp);
 const MK=[0,1,2,3,4].map(()=>{const m=new THREE.Mesh(new THREE.SphereGeometry(1,14,10),new THREE.MeshBasicMaterial({depthTest:false,transparent:true,opacity:.95,fog:false}));
@@ -195,16 +196,18 @@ tc.addEventListener('change',()=>dirty=true);
 let st=null,ps0=null,bs0=null,hb=null,rootB=null,ldrag=-1;
 const _wp=new THREE.Vector3(),_wq=new THREE.Quaternion(),_ws=new THREE.Vector3(),_ident=new THREE.Quaternion();
 function syncAnchor(){
+ if(S.pivEdit){anchor.position.copy(pivot.position);anchor.quaternion.copy(_ident);anchor.scale.set(1,1,1);anchor.updateMatrixWorld();return;}
  if(selBone){selBone.updateWorldMatrix(true,false);selBone.matrixWorld.decompose(_wp,_wq,_ws);anchor.position.copy(_wp);anchor.quaternion.copy(S.local||tc.mode==='scale'?_wq:_ident);}
  else{anchor.position.copy(pivot.position);anchor.quaternion.copy(S.local?pivot.quaternion:_ident);}
  anchor.scale.set(1,1,1);anchor.updateMatrixWorld();}
 function attachRoot(){syncAnchor();tc.attach(anchor);}
-tc.addEventListener('mouseDown',()=>{const o=tc.object;if(!o)return;hb=snapAll(selBone?[selBone]:[pivot]);st={o,p:o.position.clone(),q:o.quaternion.clone(),s:o.scale.clone()};ps0={p:pivot.position.clone(),q:pivot.quaternion.clone(),s:pivot.scale.clone()};
+tc.addEventListener('mouseDown',()=>{const o=tc.object;if(!o)return;hb=snapAll(S.pivEdit&&modelObj&&modelObj.userData.grp?[pivot,modelObj.userData.grp]:selBone?[selBone]:[pivot]);st={o,p:o.position.clone(),q:o.quaternion.clone(),s:o.scale.clone()};ps0={p:pivot.position.clone(),q:pivot.quaternion.clone(),s:pivot.scale.clone()};
  bs0=null;if(selBone){const b=selBone,pr=b.parent,wp=new THREE.Vector3(),wq=new THREE.Quaternion(),pq=new THREE.Quaternion(),sc=new THREE.Vector3();b.updateWorldMatrix(true,false);b.matrixWorld.decompose(wp,wq,sc);
   if(pr){pr.updateWorldMatrix(true,false);pr.matrixWorld.decompose(new THREE.Vector3(),pq,sc);}
   bs0={s:b.scale.clone(),wp,wq,pq,pinv:pr?pr.matrixWorld.clone().invert():new THREE.Matrix4()};}});
 tc.addEventListener('mouseUp',()=>{st=null;bs0=null;if(hb){pushH(hb,snapAll(hb.map(t=>t.o)));hb=null;}syncAnchor();dirty=true;});
 tc.addEventListener('objectChange',()=>{const o=tc.object;
+ if(S.pivEdit&&o===anchor){if(tc.mode==='translate'&&st)movePivotTo(anchor.position);dirty=true;return;}
  if(S.slow&&st&&o===st.o){const k=S.slowK,np=o.position.clone(),nq=o.quaternion.clone(),ns=o.scale.clone();o.position.copy(st.p).lerp(np,k);o.quaternion.copy(st.q).slerp(nq,k);o.scale.copy(st.s).lerp(ns,k);}
  if(o===anchor&&st&&bs0&&selBone){const m=tc.mode,b=selBone;
   if(m==='translate')b.position.copy(bs0.wp.clone().add(anchor.position.clone().sub(st.p)).applyMatrix4(bs0.pinv));
@@ -220,21 +223,44 @@ tc.addEventListener('objectChange',()=>{const o=tc.object;
 controls.addEventListener('change',()=>{dirty=true;updRim();});
 controls.addEventListener('end',()=>{if(S.sunFollow)envDirty=true;});
 
+const pivMk=(()=>{const g=new THREE.Group(),m=new THREE.Mesh(new THREE.SphereGeometry(.5,14,10),new THREE.MeshBasicMaterial({color:0xffd23f,depthTest:false,transparent:true,opacity:.95,fog:false}));
+ const ax=new THREE.AxesHelper(1.6);ax.material.depthTest=false;ax.material.transparent=true;ax.material.fog=false;g.add(m,ax);g.traverse(o=>{o.renderOrder=1001;o.frustumCulled=false;});g.visible=false;scene.add(g);return g;})();
+function updPivMk(){const on=S.pivEdit||S.showPivot;pivMk.visible=on&&!!modelObj;if(!pivMk.visible)return;pivMk.position.copy(pivot.position);const f=2*Math.tan(camera.fov*Math.PI/360)/(renderer.domElement.clientHeight||1);pivMk.scale.setScalar(pivMk.position.distanceTo(camera.position)*f*14);}
+function movePivotTo(w){const g=modelObj&&modelObj.userData.grp;if(!g)return;pivot.updateMatrixWorld(true);
+ const dl=w.clone().sub(pivot.position).applyQuaternion(pivot.quaternion.clone().invert()).divide(pivot.scale);
+ g.position.sub(dl);pivot.position.copy(w);pivot.updateMatrixWorld(true);S.lift=pivot.position.y;syncUI();updShadow();dirty=true;}
+function setPivEdit(v){S.pivEdit=!!v;$('#pivBtn').classList.toggle('on',S.pivEdit);
+ if(S.pivEdit){selBone=null;const b=document.querySelector('#modes button[data-m="translate"]');if(b)b.click();toast('Drag the gizmo to move the pivot point. Rotate and scale will use it.');}
+ attachRoot();refreshBoneUI();dirty=true;}
+function pivotTo(kind){const g=modelObj&&modelObj.userData.grp;if(!g)return toast('Load a model first');const b0=snapAll([pivot,g]);let w;pivot.updateMatrixWorld(true);
+ if(kind==='center')w=new THREE.Box3().setFromObject(pivot).getCenter(new THREE.Vector3());
+ else if(kind==='bone'){if(!selBone)return toast('Pick a bone first');w=new THREE.Vector3().setFromMatrixPosition(selBone.matrixWorld);}
+ else{const k=g.scale.x||1;w=g.localToWorld(g.userData.g0.clone().negate().divideScalar(k));}
+ movePivotTo(w);pushH(b0,snapAll([pivot,g]));syncAnchor();dirty=true;toast(kind==='center'?'Pivot moved to the model center':kind==='bone'?'Pivot moved to the selected bone':'Pivot reset to the feet center');}
+$('#pivBtn').onclick=()=>setPivEdit(!S.pivEdit);
+$('#space').onclick=()=>{S.local=!S.local;syncUI();apply();toast(S.local?'Gizmo space: local':'Gizmo space: world');};
 const BT={open:new Set(),q:''};let treeEl=null,modelObj=null;
 let bones=[],bmesh=[],selBone=null,skelH=null,boneSel=null;const boneGrp=new THREE.Group();scene.add(boneGrp);
 const mkGeo=new THREE.SphereGeometry(1,10,8),mkMat=new THREE.MeshBasicMaterial({color:0x38e8ff,depthTest:false,transparent:true,opacity:.75}),mkSel=new THREE.MeshBasicMaterial({color:0xff9a1f,depthTest:false,transparent:true,opacity:1}),mkLock=new THREE.MeshBasicMaterial({color:0x8a8f99,depthTest:false,transparent:true,opacity:.28});
+let MAIN_N=0,_MS=null;
+function mainSet(){if(_MS)return _MS;const st=new Set(),add=a=>a.forEach(x=>st.add(nrmN(x)));
+ for(const k in ROLE)add(ROLE[k]);add(['センター','center','グルーブ','groove','腰','waist','全ての親','root','allparent','両目','eyes']);
+ const lk=['arm','elbow','wrist','leg','knee','ankle','toe'].flatMap(k=>LIMB[k]).concat(['肩','shoulder','clavicle']);
+ for(const sd in SIDE)for(const t of SIDE[sd])lk.forEach(a=>{st.add(nrmN(t+a));st.add(nrmN(a+t));});return _MS=st;}
+const mainActive=()=>S.mainOnly&&MAIN_N>=8;
 function buildBones(obj){boneGrp.clear();bmesh=[];bones=[];skelH=null;selBone=null;
  obj.traverse(o=>{if(o.isBone){bones.push(o);if(!o.userData.rest)o.userData.rest={p:o.position.clone(),q:o.quaternion.clone(),s:o.scale.clone()};}});
+ bones.forEach(b=>{b.userData.main=mainSet().has(nrmN(b.name));});MAIN_N=bones.filter(b=>b.userData.main).length;
  bones.forEach(b=>{const m=new THREE.Mesh(mkGeo,mkMat);m.renderOrder=999;m.userData.bone=b;boneGrp.add(m);bmesh.push(m);});
  if(bones.length){skelH=new THREE.SkeletonHelper(obj);const m=skelH.material;m.vertexColors=false;m.color.set(0x38e8ff);m.depthTest=false;m.transparent=true;m.opacity=.35;skelH.renderOrder=998;skelH.frustumCulled=false;boneGrp.add(skelH);}
  BT.open.clear();BT.q='';bones.forEach(x=>{if(!(x.parent&&x.parent.isBone))BT.open.add(x);});
  boneGrp.visible=S.showBones&&bones.length>0;refreshBoneUI();}
-function updBones(){if(!boneGrp.visible)return;const f=2*Math.tan(camera.fov*Math.PI/360)/(renderer.domElement.clientHeight||1);
+function updBones(){if(!boneGrp.visible)return;if(skelH)skelH.visible=!mainActive();const f=2*Math.tan(camera.fov*Math.PI/360)/(renderer.domElement.clientHeight||1);
  bmesh.forEach(m=>{const b=m.userData.bone,sel=b===selBone,lk=!!b.userData.locked;m.position.setFromMatrixPosition(b.matrixWorld);
   m.scale.setScalar(m.position.distanceTo(camera.position)*f*S.markSize*(sel?1.6:lk?.7:1));m.material=sel?mkSel:lk?mkLock:mkMat;
-  m.visible=!b.userData.hidden&&(!S.boneOnly||!selBone||sel||b===selBone.parent||b.parent===selBone);});}
+  m.visible=!b.userData.hidden&&(!mainActive()||b.userData.main)&&(!S.boneOnly||!selBone||sel||b===selBone.parent||b.parent===selBone);});}
 function refreshBoneUI(){renderTree();dirty=true;}
-function pickBone(b){if(b.userData.locked)return toast('Bone is locked: '+(b.name||'unnamed'));if(b.userData.hidden)return toast('Bone is hidden: '+(b.name||'unnamed'));
+function pickBone(b){if(S.pivEdit)setPivEdit(false);if(b.userData.locked)return toast('Bone is locked: '+(b.name||'unnamed'));if(b.userData.hidden)return toast('Bone is hidden: '+(b.name||'unnamed'));
  selBone=b;for(let y=b.parent;y&&y.isBone;y=y.parent)BT.open.add(y);attachRoot();refreshBoneUI();toast('Bone: '+(b.name||'unnamed'));}
 function home(){selBone=null;attachRoot();refreshBoneUI();toast('Root selected: moving the whole model');}
 const restore=b=>{const r=b.userData.rest;if(r){b.position.copy(r.p);b.quaternion.copy(r.q);b.scale.copy(r.s);}};
@@ -257,13 +283,14 @@ function renderTree(){if(!treeEl)return;treeEl.innerHTML='';const q=BT.q.trim().
  const match=x=>!q||(x.name||'').toLowerCase().includes(q);const keep=new Set();
  if(q)bones.forEach(x=>{if(match(x)){let y=x;while(y&&y.isBone){keep.add(y);y=y.parent;}}});
  const mk=(t,c,f,title)=>{const e=document.createElement('button');e.textContent=t;e.className=(c||'')+' secondary interactive';if(title)e.title=title;e.onclick=ev=>{ev.stopPropagation();f();};return e;};
- const rec=(x,d)=>{if(q&&!keep.has(x))return;const kids=boneKids(x),open=q?true:BT.open.has(x);
+ const rec=(x,d,flat)=>{if(!flat&&q&&!keep.has(x))return;const kids=flat?[]:boneKids(x),open=q?true:BT.open.has(x);
   const r=document.createElement('div');r.className='tr'+(x===selBone?' sel':'')+(x.userData.locked?' lk':'');r.style.paddingLeft=(6+d*14)+'px';
   const ar=document.createElement('span');ar.className='ar';ar.textContent=kids.length?(open?'-':'+'):'';if(kids.length)ar.onclick=ev=>{ev.stopPropagation();if(BT.open.has(x))BT.open.delete(x);else BT.open.add(x);renderTree();};
   const nm=document.createElement('span');nm.className='nm';nm.textContent=x.name||'bone';
   r.append(ar,nm,mk(x.userData.locked?'Locked':'Lock',x.userData.locked?'on':'',()=>{x.userData.locked=!x.userData.locked;if(x.userData.locked&&x===selBone)home();renderTree();dirty=true;},'Locked bones cannot be picked or moved'),mk(x.userData.hidden?'Hidden':'Hide',x.userData.hidden?'on':'',()=>{x.userData.hidden=!x.userData.hidden;if(x.userData.hidden&&x===selBone)home();renderTree();dirty=true;},'Hide the marker of this bone'));
   r.onclick=()=>pickBone(x);treeEl.appendChild(r);if(open)kids.forEach(k=>rec(k,d+1));};
- bones.filter(x=>!(x.parent&&x.parent.isBone)).forEach(x=>rec(x,0));
+ if(mainActive())bones.filter(x=>x.userData.main&&match(x)).forEach(x=>{let n=0,y=x.parent;while(y&&y.isBone){if(y.userData.main)n++;y=y.parent;}rec(x,n,true);});
+ else bones.filter(x=>!(x.parent&&x.parent.isBone)).forEach(x=>rec(x,0));
  const sl=treeEl.querySelector('.sel');if(sl&&sl.scrollIntoView&&!BT.q)sl.scrollIntoView({block:'nearest'});}
 function boneUI(b){
  if(!bones.length){nrow(b,'No bones found in this model');treeEl=null;return;}
@@ -385,7 +412,7 @@ function updShadow(){const b=new THREE.Box3().setFromObject(pivot); if(b.isEmpty
   if(S.ground&&lowSun&&_lp.y>0){const t=Math.min(_lp.y/dy,maxL);add(_lp.addScaledVector(sunDir,-t));}}
  const pad=R*.06+(x1-x0)*.02,half=Math.max(x1-x0,y1-y0)/2+pad,cx=(x0+x1)/2,cy=(y0+y1)/2;
  const c=sun.shadow.camera;c.left=cx-half;c.right=cx+half;c.bottom=cy-half;c.top=cy+half;c.near=Math.max(.01,-z1-pad);c.far=Math.max(c.near+.1,-z0+pad);c.updateProjectionMatrix();
- sun.shadow.normalBias=Math.max(R*.002,half*2/Math.max(256,+S.shRes)*4);sun.shadow.bias=-.001;
+ sun.shadow.normalBias=Math.max(R*.002,half*2/Math.max(256,+S.shRes)*4)*S.shNB;sun.shadow.bias=-.001*S.shBias;
  ground.scale.setScalar(R*80);floorM.scale.setScalar(R*S.floorSize);floorM.position.set(ctr.x,-R*.002,ctr.z);gridM.scale.setScalar(R*S.floorSize);gridM.position.set(ctr.x,-R*.002,ctr.z);updClip(); dirty=true;}
 function updClip(){const d=camera.position.distanceTo(ctr);camera.near=Math.max(R*.004,d-R*2.2);camera.far=d+R*30;camera.updateProjectionMatrix();}
 function updFog(){scene.fog=S.fog?fogO:null;if(!S.fog)return;fogO.color.set(S.fogHz?S.mid:S.fogCol).convertSRGBToLinear();
@@ -405,7 +432,7 @@ function rotateEnv(t,deg){const im=t.image;let n;const w=im.width||im.naturalWid
  else{const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.drawImage(im,-sh,0);x.drawImage(im,w-sh,0);n=new THREE.CanvasTexture(c);}
  n.mapping=t.mapping;n.encoding=t.encoding;n.minFilter=n.magFilter=THREE.LinearFilter;n.generateMipmaps=false;n.flipY=t.flipY;n.needsUpdate=true;return n;}
 function envSrc(){if(!(S.hdri&&envTex))return null;const d=Math.round(S.envRot)%360;if(!d)return envTex;if(rotTex&&rotVal===d)return rotTex;if(rotTex)rotTex.dispose();rotTex=rotateEnv(envTex,d);rotVal=d;return rotTex;}
-function updRim(){updFog();updClip();const d=camera.position.clone().sub(controls.target),az=Math.atan2(d.x,d.z);
+function updRim(){updFog();updClip();headL.position.copy(camera.position);headL.target.position.copy(controls.target);headL.target.updateMatrixWorld();const d=camera.position.clone().sub(controls.target),az=Math.atan2(d.x,d.z);
  const put=(l,a,e)=>{e*=Math.PI/180;l.position.set(Math.sin(a)*Math.cos(e),Math.sin(e),Math.cos(a)*Math.cos(e)).multiplyScalar(10);};
  put(rim,az+Math.PI+S.rimAngle*Math.PI/180,S.rimEl); put(fill,az+S.fillAng*Math.PI/180,S.fillEl);updAcc();updMarks();}
 function baseOf(m){return m.userData.b||(m.userData.b={tr:m.transparent,op:m.opacity,bl:m.blending,dw:m.depthWrite,sd:m.side,col:m.color?m.color.clone():null,map:m.map||null,ei:m.emissiveIntensity||1,rg:m.roughness,mt2:m.metalness,at:m.alphaTest||0,emi:m.emissive?m.emissive.clone():null,emap:m.emissiveMap||null,vc:m.vertexColors,am:m.alphaMap||null,pm:m.premultipliedAlpha,sk:!!m.skinning,mt:!!m.morphTargets});}
@@ -478,7 +505,7 @@ function apply(k){
  sun.color.set(S.sunCol).convertSRGBToLinear(); sun.intensity=(S.world&&S.sunOn)?S.sunI*S.lightMul:0; sun.castShadow=S.shadows&&S.world&&S.sunOn; if(envRT)scene.environment=S.world?envRT.texture:null; outPass.uniforms.tone.value=S.tone;outPass.uniforms.contrast.value=S.contrast;outPass.uniforms.sat.value=S.sat;outPass.uniforms.vig.value=S.vig;outPass.uniforms.hlim.value=+S.hlim||0;
  ground.visible=S.ground&&S.shadows; ground.material.opacity=S.shOp; sun.shadow.radius=S.shSoft;
  if(sun.shadow.mapSize.x!==+S.shRes){sun.shadow.mapSize.set(+S.shRes,+S.shRes);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null;}}
- rim.visible=S.world&&S.rim; rim.intensity=S.rimI*S.lightMul; rim.color.set(S.rimCol).convertSRGBToLinear(); fill.intensity=S.world?S.fill*S.lightMul:0;fill.color.set(S.fillCol).convertSRGBToLinear();ambL.intensity=S.ambOn?S.amb*S.lightMul:0;ambL.color.set(S.ambCol).convertSRGBToLinear();
+ rim.visible=S.world&&S.rim; rim.intensity=S.rimI*S.lightMul; rim.color.set(S.rimCol).convertSRGBToLinear(); fill.intensity=S.world?S.fill*S.lightMul:0;fill.color.set(S.fillCol).convertSRGBToLinear();ambL.intensity=S.ambOn?S.amb*S.lightMul:0;headL.intensity=S.headOn?S.headI*S.lightMul:0;headL.color.set(S.headCol).convertSRGBToLinear();headL.position.copy(camera.position);headL.target.position.copy(controls.target);headL.target.updateMatrixWorld();ground.material.color.set(S.shCol).convertSRGBToLinear();if(!k||k==='shCast'||k==='shSelf'){pivot.traverse(o=>{if(o.isMesh){o.castShadow=!!S.shCast;o.receiveShadow=!!S.shSelf;}});}if(k==='shBias'||k==='shNB')updShadow();ambL.color.set(S.ambCol).convertSRGBToLinear();
  camera.fov=S.fov; camera.updateProjectionMatrix();
  controls.enableDamping=S.smooth>0; controls.dampingFactor=Math.max(.03,1-S.smooth); controls.autoRotate=S.auto;controls.autoRotateSpeed=S.autoSpd;
  bloomPass.enabled=S.bloom; bloomPass.strength=S.bStr; bloomPass.radius=S.bRad; bloomPass.threshold=S.bThr;
@@ -487,7 +514,7 @@ function apply(k){
   const Dd=[1,.8,.6,.4,.2],Tt=S.bWide<0?[1,.45,.15,.03,0]:[.15,.35,.7,1,1],q=Math.abs(S.bWide);bloomPass.compositeMaterial.uniforms.bloomFactors.value=Dd.map((d,i)=>d+(Tt[i]-d)*q);}
  if(k==='animLoop'&&act){act.setLoop(S.animLoop?THREE.LoopRepeat:THREE.LoopOnce,Infinity);act.clampWhenFinished=true;}
  if(k==='oscale')pivot.scale.setScalar(S.oscale);if(k==='roty')pivot.rotation.y=S.roty*r;if(k==='lift')pivot.position.y=S.lift;if(tc.object===anchor&&!tc.dragging)syncAnchor();
- boneGrp.visible=S.showBones&&bones.length>0;tc.setSpace(S.local?'local':'world');$('#slow').classList.toggle('on',S.slow);$('#bonesBtn').classList.toggle('on',S.showBones&&bones.length>0);$('#bonesBtn').style.opacity=bones.length?1:.45;tc.setSize(S.gizmo);
+ boneGrp.visible=S.showBones&&bones.length>0;tc.setSpace(S.local?'local':'world');$('#space').textContent=S.local?'Local':'World';$('#space').classList.toggle('on',!!S.local);if(k==='mainOnly'){if(S.mainOnly&&!mainActive())toast('No standard main bones found, showing all bones');refreshBoneUI();}$('#slow').classList.toggle('on',S.slow);$('#bonesBtn').classList.toggle('on',S.showBones&&bones.length>0);$('#bonesBtn').style.opacity=bones.length?1:.45;tc.setSize(S.gizmo);
  view.style.background=S.checker?'repeating-conic-gradient(#8f8f95 0% 25%,#c9c9ce 0% 50%) 0 0/24px 24px':(S.skyBg?`linear-gradient(${S.top},${S.mid} 55%,${S.bot})`:S.bgCol);scene.background=(S.hdri&&envTex&&S.hdriBg)?envSrc():null;
  floorM.visible=+S.floor===1;gridM.visible=+S.floor===2;floorM.material.color.set(S.floorCol).convertSRGBToLinear();gridM.material.color.set(S.floorCol).convertSRGBToLinear();
  if(k==='quality'||k==='bRange')onResize();
@@ -500,7 +527,7 @@ function fit(){const b=new THREE.Box3().setFromObject(pivot); if(b.isEmpty())ret
 
 
 function setObject(obj){
- MATS={};OV={};selMat=null;mixer=null;act=null;clips=[];modelObj=obj;HIST.u.length=0;HIST.r.length=0;updHist();
+ MATS={};OV={};selMat=null;mixer=null;act=null;clips=[];modelObj=obj;if(S.pivEdit)setPivEdit(false);HIST.u.length=0;HIST.r.length=0;updHist();
  const mx=renderer.capabilities.getMaxAnisotropy();
  obj.traverse(o=>{if(o.isPoints){[].concat(o.material).forEach(m=>{m.userData.sid=m.userData.sid||m.uuid;if(!MATS[m.userData.sid])MATS[m.userData.sid]={name:(m.name||'points')+' (points)'};baseOf(m);});o.userData.pts=true;return;}
   if(!o.isMesh)return; o.castShadow=o.receiveShadow=true; o.frustumCulled=false;
@@ -518,7 +545,7 @@ function setObject(obj){
  {let tris=0,vs=0,ms=0,sk=0,mt=0;const tx=new Set();obj.traverse(o=>{if(!o.isMesh)return;ms++;if(o.isSkinnedMesh)sk++;const ge=o.geometry,p=ge&&ge.attributes.position;if(p){vs+=p.count;tris+=ge.index?ge.index.count/3:p.count/3;}
   [].concat(o.material).forEach(m=>{for(const kk in m){const t=m[kk];if(t&&t.isTexture&&!tx.has(t)){tx.add(t);const im=t.image;if(im&&im.width)mt=Math.max(mt,im.width,im.height);}}});});
  INFO={tris:Math.round(tris),verts:vs,meshes:ms,skinned:sk,tex:tx.size,maxTex:mt?mt+' px':'-',size:[sz.x,sz.y,sz.z].map(v=>v.toFixed(3)).join(' × ')};}
- const g=new THREE.Group(); g.add(obj); g.scale.setScalar(k); g.position.set(-c.x*k,-b.min.y*k,-c.z*k); pivot.add(g);obj.userData.grp=g;buildBones(obj);attachRoot();
+ const g=new THREE.Group(); g.add(obj); g.scale.setScalar(k); g.position.set(-c.x*k,-b.min.y*k,-c.z*k); g.userData.g0=g.position.clone(); pivot.add(g);obj.userData.grp=g;buildBones(obj);attachRoot();
  Object.assign(S,{oscale:1,roty:0,lift:0}); syncUI(); apply(); applyEnvI(); fit(); $('#hint').style.display='none';}
 const BLOBS={};
 {const c=URL.createObjectURL.bind(URL);URL.createObjectURL=b=>{const u=c(b);BLOBS[u]=b;return u;};
@@ -592,7 +619,7 @@ const isModel=n=>/\.(glb|gltf|fbx|pmx)$/i.test(n);
 function saveModelState(){if(!curModel||!MODELS[curModel]||!modelObj)return;
  MODELS[curModel].st={MATS,OV,selMat,hu:HIST.u,hr:HIST.r,INFO,g:modelObj.userData.grp||modelObj.parent,pp:pivot.position.clone(),pr:pivot.rotation.clone(),ps:pivot.scale.clone(),so:{oscale:S.oscale,roty:S.roty,lift:S.lift},sb:bones.indexOf(selBone),cp:camera.position.clone(),ct:controls.target.clone()};}
 function restoreModel(name){const m=MODELS[name],st=m.st,obj=m.obj;
- MATS=st.MATS;OV=st.OV;selMat=st.selMat;mixer=null;act=null;clips=[];modelObj=obj;HIST.u=st.hu;HIST.r=st.hr;updHist();INFO=st.INFO;
+ MATS=st.MATS;OV=st.OV;selMat=st.selMat;mixer=null;act=null;clips=[];modelObj=obj;if(S.pivEdit)setPivEdit(false);HIST.u=st.hu;HIST.r=st.hr;updHist();INFO=st.INFO;
  pivot.clear();pivot.add(st.g);pivot.position.copy(st.pp);pivot.rotation.copy(st.pr);pivot.scale.copy(st.ps);pivot.updateMatrixWorld(true);
  buildBones(obj);selBone=st.sb>=0?bones[st.sb]:null;attachRoot();
  Object.assign(S,st.so);camera.position.copy(st.cp);controls.target.copy(st.ct);controls.update();
@@ -697,7 +724,7 @@ const VIEWS=(()=>{try{return JSON.parse(localStorage.getItem('nako-views'))||[nu
 function setView(x,y,z){const d=camera.position.distanceTo(controls.target);camera.position.copy(controls.target).addScaledVector(new THREE.Vector3(x,y,z).normalize(),d);controls.update();dirty=true;updRim();}
 function saveView(i){VIEWS[i]={p:camera.position.toArray(),t:controls.target.toArray(),f:S.fov};try{localStorage.setItem('nako-views',JSON.stringify(VIEWS));}catch(e){}toast('View '+(i+1)+' saved');}
 function goView(i){const v=VIEWS[i];if(!v)return toast('View '+(i+1)+' is empty');camera.position.fromArray(v.p);controls.target.fromArray(v.t);S.fov=v.f;syncUI();apply();controls.update();dirty=true;}
-const LOOKK=['sunOn','ambOn','sunDisc','hlim','rMin','mMul','emiMul','lightMul','sunK','az','el','sunI','sunCol','shadows','ground','shOp','shSoft','env','exposure','top','mid','bot','rim','rimI','rimCol','rimAngle','rimEl','fill','fillCol','fillAng','fillEl','amb','ambCol','p1','p1Col','p1I','p1Az','p1El','p1D','p2','p2Col','p2I','p2Az','p2El','p2D','sunFollow','envRot','bloom','bStr','bRad','bThr','bSm','bRange','bWide','bMode','bCol','bCol2','bAmt','world','contrast','sat','vig','bgCol','skyBg','tone','shade','lightMode','fog','fogHz','fogCol','fogStart','fogEnd','floor','floorCol','floorSize'];
+const LOOKK=['headOn','headI','headCol','shSelf','shCast','shCol','shBias','shNB','sunOn','ambOn','sunDisc','hlim','rMin','mMul','emiMul','lightMul','sunK','az','el','sunI','sunCol','shadows','ground','shOp','shSoft','env','exposure','top','mid','bot','rim','rimI','rimCol','rimAngle','rimEl','fill','fillCol','fillAng','fillEl','amb','ambCol','p1','p1Col','p1I','p1Az','p1El','p1D','p2','p2Col','p2I','p2Az','p2El','p2D','sunFollow','envRot','bloom','bStr','bRad','bThr','bSm','bRange','bWide','bMode','bCol','bCol2','bAmt','world','contrast','sat','vig','bgCol','skyBg','tone','shade','lightMode','fog','fogHz','fogCol','fogStart','fogEnd','floor','floorCol','floorSize'];
 const nrmN=t=>String(t||'').normalize('NFKC').toLowerCase().replace(/[\s_.\-・]/g,'');
 const ROLE={hips:['下半身','lowerbody','hips','pelvis'],spine:['上半身','upperbody','spine'],chest:['上半身2','upperbody2','chest','spine1','spine2'],neck:['首','neck'],head:['頭','head']};
 const LIMB={arm:['腕','arm','upperarm'],elbow:['ひじ','肘','elbow','lowerarm','forearm'],wrist:['手首','wrist','hand'],leg:['足','leg','upperleg','thigh','upleg'],knee:['ひざ','膝','knee','lowerleg','shin','calf'],ankle:['足首','ankle','foot'],toe:['つま先','toe','toes','toebase','足先ex'],fing:['人指１','人指1','人差指','人差し指','indexfinger1','index1','indexproximal','中指１','中指1','middle1','middlefinger1']};
@@ -793,10 +820,10 @@ async function recordTurn(){
  const vis=tc.visible,bv=boneGrp.visible,lgv=lightGrp.visible,y0=pivot.rotation.y;recording=true;tc.visible=false;boneGrp.visible=false;lightGrp.visible=false;
  const dur=Math.max(1,+S.recDur),t0=performance.now();let last=t0;toast('Recording '+dur+'s…');rec.start();
  await new Promise(res=>{(function f(){const n=performance.now(),t=(n-t0)/1000/dur;if(mixer&&S.animPlay)mixer.update(Math.min((n-last)/1000,.1)*S.animSpd);last=n;if(t>=1)return res();
-  pivot.rotation.y=y0+t*Math.PI*2;scene.updateMatrixWorld();updBones();composer.render();
+  pivot.rotation.y=y0+t*Math.PI*2;scene.updateMatrixWorld();updBones();updPivMk();composer.render();
   if(S.skyBg){const g=x.createLinearGradient(0,0,0,cv.height);g.addColorStop(0,S.top);g.addColorStop(.55,S.mid);g.addColorStop(1,S.bot);x.fillStyle=g;}else x.fillStyle=S.bgCol;
   x.fillRect(0,0,cv.width,cv.height);x.drawImage(src,0,0,cv.width,cv.height);requestAnimationFrame(f);})();});
- rec.stop();await fin;pivot.rotation.y=y0;recording=false;tc.visible=vis;boneGrp.visible=bv;lightGrp.visible=lgv;if(tc.object===anchor)syncAnchor();dirty=true;
+ rec.stop();await fin;pivot.rotation.y=y0;recording=false;pivMk.visible=pmv;tc.visible=vis;boneGrp.visible=bv;lightGrp.visible=lgv;if(tc.object===anchor)syncAnchor();dirty=true;
  await saveBlob(new Blob(ch,{type:mt.split(';')[0]}),fname(/mp4/.test(mt)?'mp4':'webm'));}
 const LP={
  'Studio 3-point':{world:true,az:40,el:40,sunI:3,sunCol:'#fff3e0',amb:.05,rim:true,rimI:2.5,rimCol:'#cfe0ff',fill:.6,fillCol:'#dbe6ff',fillAng:-60,fillEl:15,p1:false,p2:false,env:1,shSoft:4},
@@ -816,10 +843,10 @@ const TABS={
   ['n','Glowing / space / unlit models: use Flat + None. If layers look noisy, try Soft transparency.']],
  Materials:[['f',matUI]],
  Light:[['t','world','World light (sun + sky)'],['t','sunOn','Sun light'],['b',Object.keys(LP).map(n=>[n,()=>{Object.assign(S,LP[n]);syncUI();apply();}])],['r','az','Sun angle °',0,360,1],['r','el','Sun height °',-90,90,1],['r','sunI','Sun intensity',0,12,.05],['c','sunCol','Sun color'],['r','sunDisc','Sun reflection glint',0,2,.01],['r','sunK','Sun temperature (K)',1500,12000,50],['r','lightMul','Master light multiplier',0,4,.01],['t','sunFollow','Sun follows camera (angle is relative)'],
-  ['t','ambOn','Ambient light (works without the sun)'],['r','amb','Ambient strength',0,4,.01],['c','ambCol','Ambient color'],['t','showLights','Show light markers (drag them)'],
+  ['t','headOn','Camera fill (lights the side facing you)'],['r','headI','Camera fill strength',0,3,.01],['c','headCol','Camera fill color'],['t','ambOn','Ambient light (works without the sun)'],['r','amb','Ambient strength',0,4,.01],['c','ambCol','Ambient color'],['t','showLights','Show light markers (drag them)'],
   ['t','shadows','Shadows'],['t','ground','Ground shadow'],['r','shOp','Shadow darkness',0,1,.01],['r','shSoft','Shadow softness',0,12,.1],
   ['r','env','Sky light / reflect',0,4,.05],['r','exposure','Exposure',.2,3,.01],
-  ['b',[['Reset lights',()=>{const k=['az','el','sunI','sunCol','sunK','lightMul','amb','ambCol','rim','rimI','rimCol','rimAngle','rimEl','fill','fillCol','fillAng','fillEl','p1','p2','sunFollow','sunOn','ambOn','sunDisc'];k.forEach(x=>S[x]=DEF[x]);syncUI();apply();}]]],
+  ['b',[['Reset lights',()=>{const k=['az','el','sunI','sunCol','sunK','lightMul','amb','ambCol','rim','rimI','rimCol','rimAngle','rimEl','fill','fillCol','fillAng','fillEl','p1','p2','sunFollow','sunOn','ambOn','sunDisc','headOn','headI','headCol'];k.forEach(x=>S[x]=DEF[x]);syncUI();apply();}]]],
   ['n','Every slider also has a number box. Type any value, even past the slider range. With light markers on, drag a marker on the model to aim that light.']],
  'Rim & Fill':[['t','rim','Rim light'],['r','rimI','Rim intensity',0,12,.05],['c','rimCol','Rim color'],['r','rimAngle','Rim side offset °',-90,90,1],['r','rimEl','Rim height °',-20,80,1],['r','fill','Fill light',0,3,.05],['c','fillCol','Fill color'],['r','fillAng','Fill side °',-180,180,1],['r','fillEl','Fill height °',-30,80,1],
   ['t','p1','Accent light A'],['c','p1Col','A color'],['r','p1I','A intensity',0,12,.05],['r','p1Az','A angle °',-180,180,1],['r','p1El','A height °',-60,89,1],['r','p1D','A distance',.3,5,.05],
@@ -831,14 +858,14 @@ const TABS={
   sel('bMode','Glow color',[[0,'Natural (scene colors)'],[1,'Tint (multiply)'],[2,'Solid color'],[3,'Two-tone (dim → hot)']]),['c','bCol','Glow color'],['c','bCol2','Hot color (two-tone)'],['r','bAmt','Color strength',0,1,.01],
   ['n','Range makes the glow bigger without changing how fast it fades. Natural keeps the model colors; Tint multiplies them; Solid paints all glow in your color; Two-tone goes from the first color in dim areas to the hot color in the brightest.']],
  Fog:[['t','fog','Fog'],['t','fogHz','Match horizon color'],['c','fogCol','Fog color'],['r','fogStart','Start (object sizes)',-3,4,.05],['r','fogEnd','Full fog at',-2,10,.05],['n','Distance fog from the camera: parts of the model farther away fade toward the fog color. Lower "Full fog at" for thicker haze.']],
- Bones:[['t','showBones','Show bone points'],['t','boneOnly','Only selected + neighbors'],['r','markSize','Point size (px)',2,20,1],['r','gizmo','Gizmo size',.4,2,.05],['f',boneUI],['f',poseUI],['t','poseMirror','Mirror image (for selfie-flipped photos)'],sel('poseDelay','Camera countdown',[[3,'3 seconds'],[4,'4 seconds'],[5,'5 seconds']]),['b',[['Pose from photo',()=>poseFile(),'pri'],['Pose from camera',()=>camPose()]]],['n','Pose from photo or camera fits a standard MMD style skeleton (names like 上半身, 左腕, 左ひじ, 左足, or English Left Arm style names) to a full-body picture. It is a rough starting pose with no finger or twist detection, and it resets unlocked bones first. Undo brings back the previous pose. It needs internet the first time to download the detector.'],
+ Bones:[['t','showBones','Show bone points'],['t','mainOnly','Main skeleton only (when available)'],['t','boneOnly','Only selected + neighbors'],['r','markSize','Point size (px)',2,20,1],['r','gizmo','Gizmo size',.4,2,.05],['f',boneUI],['f',poseUI],['t','poseMirror','Mirror image (for selfie-flipped photos)'],sel('poseDelay','Camera countdown',[[3,'3 seconds'],[4,'4 seconds'],[5,'5 seconds']]),['b',[['Pose from photo',()=>poseFile(),'pri'],['Pose from camera',()=>camPose()]]],['n','Pose from photo or camera fits a standard MMD style skeleton (names like 上半身, 左腕, 左ひじ, 左足, or English Left Arm style names) to a full-body picture. It is a rough starting pose with no finger or twist detection, and it resets unlocked bones first. Undo brings back the previous pose. It needs internet the first time to download the detector.'],
   ['b',[['Parent',()=>{if(selBone&&selBone.parent&&selBone.parent.isBone)pickBone(selBone.parent);}],['Child',()=>{const c=selBone&&selBone.children.find(x=>x.isBone);if(c)pickBone(c);}],['Root',()=>home()]]],
   sel('mirAxis','Mirror across',[[0,'X axis (left / right)'],[1,'Y axis'],[2,'Z axis']]),['t','mirKids','Include child bones'],
   ['b',[['Selected to opposite',()=>mirrorRun('sel')],['Left to right',()=>mirrorRun('lr')],['Right to left',()=>mirrorRun('rl')],['Swap sides',()=>mirrorRun('swap')]]],
   ['t','slow','Slow / precise gizmo'],['r','slowK','Slow strength',.02,.5,.01],['t','local','Local gizmo space'],
   ['b',[['Reset bone',()=>{if(!selBone)return;const b=snapAll([selBone]);restore(selBone);pushH(b,snapAll([selBone]));syncAnchor();dirty=true;}],['Reset pose',()=>{const l=bones.filter(x=>!x.userData.locked),b=snapAll(l);l.forEach(restore);pushH(b,snapAll(l));syncAnchor();dirty=true;}]]],
   ['n','Pick a bone from the list or tap its point on the model. Lock the bones you do not want to touch: locked bones cannot be picked or moved, and mirroring skips them. Mirror needs names like Left / Right, L / R or 左 / 右, and mirrors across the model origin.']],
- Object:[['r','oscale','Scale',.05,5,.01],['r','roty','Rotate Y °',-180,180,1],['r','lift','Height',-3,3,.01],
+ Object:[['b',[['Move pivot point',()=>setPivEdit(!S.pivEdit)],['Reset pivot',()=>pivotTo('feet')]]],['b',[['Pivot to model center',()=>pivotTo('center')],['Pivot to selected bone',()=>pivotTo('bone')]]],['t','showPivot','Show pivot point'],['r','oscale','Scale',.05,5,.01],['r','roty','Rotate Y °',-180,180,1],['r','lift','Height',-3,3,.01],
   ['b',[['Reset object',()=>{const b=snapAll([pivot]);Object.assign(S,{oscale:1,roty:0,lift:0});pivot.position.set(0,0,0);pivot.rotation.set(0,0,0);pivot.scale.set(1,1,1);syncUI();apply();pushH(b,snapAll([pivot]));}],['Fit view',fit]]],
   ['n','Tip: use Move / Rotate / Scale in the top bar to drag the object directly (W / E / R keys).']],
  Camera:[['r','fov','Field of view °',10,110,1],['r','smooth','Smoothing (0 = no slide)',0,.97,.01],['t','auto','Auto-rotate'],['r','autoSpd','Auto-rotate speed',-10,10,.1],['r','quality','Preview quality',.3,2,.05],['t','dyn','Dynamic resolution'],['r','dynK','Dynamic resolution scale',.15,1,.05],
@@ -850,6 +877,15 @@ const TABS={
  Export:[sel('size','Size (long side)',[[1024,'1024 px'],[1920,'1920 px'],[2048,'2048 px'],[3072,'3072 px'],[4096,'4096 px'],[6000,'6000 px']]),
   sel('fmt','Format',[[0,'PNG'],[1,'WebP'],[2,'JPG (no transparency)']]),sel('ss','Supersampling',[[1,'Off'],[2,'2× good'],[3,'3×'],[4,'4× best']]),['t','transp','Transparent background'],sel('cropMode','Crop',[[0,'Off (screen framing)'],[1,'Tight to object (no glow)'],[2,'Every pixel (glow + shadow)']]),['r','cropPad','Crop margin %',0,20,1],['r','cropCut','Glow cutoff % (0 = every pixel)',0,10,.1],
   ['b',[['Export PNG',()=>doExport(),'pri'],['Copy to clipboard',()=>doCopy()]]],['b',[['Export model + shadow (2 images)',()=>doSplit()]]],['n','Model + shadow saves two transparent PNGs with the same framing: one with only the model, one with only the ground shadow, so you can layer them. Uses the current view, lighting, shadows and bloom. Every pixel mode keeps the glow and shadow, down to the glow cutoff. Size is clamped to your device limits.']]};
+Object.assign(TABS,{
+ Shadow:[['n','The side of the model facing away from the sun goes dark. Camera fill lights whatever faces you, so it never looks shadowed from the viewing side.'],
+  ['t','headOn','Camera fill (lights the side facing you)'],['r','headI','Camera fill strength',0,3,.01],['c','headCol','Camera fill color'],['t','ambOn','Ambient light'],['r','amb','Ambient strength',0,4,.01],
+  ['t','shadows','Shadows'],['t','shCast','Model casts shadows'],['t','shSelf','Model receives its own shadows'],['t','ground','Ground shadow'],
+  ['r','shOp','Ground shadow darkness',0,1,.01],['c','shCol','Ground shadow color'],['r','shSoft','Shadow softness',0,12,.1],sel('shRes','Shadow map',[[512,'512 (fast)'],[1024,'1024'],[2048,'2048'],[4096,'4096']]),
+  ['r','shBias','Self-shadow bias (raise to remove stripes)',0,8,.05],['r','shNB','Shadow edge offset (raise to remove acne)',0,8,.05],
+  ['r','el','Sun height (shadow length)',-90,90,1],['r','az','Sun angle (shadow direction)',0,360,1],
+  ['b',[['Clean',()=>{Object.assign(S,{headOn:true,headI:.6,shBias:1.5,shNB:1.5,shSoft:4});syncUI();apply();}],['Strong',()=>{Object.assign(S,{headOn:false,shOp:.8,shSoft:1.5,shBias:1,shNB:1});syncUI();apply();}],['Default',()=>{Object.assign(S,{headOn:true,headI:.5,shCast:true,shSelf:true,shCol:'#000000',shBias:1,shNB:1,shSoft:3,shOp:.55});syncUI();apply();}]]],
+  ['n','Camera fill ignores the sun, so you can keep a strong shadow and still see the model. Turn it off for a hard sun-only look.']]});
 Object.assign(TABS,{
  Shine:[['n','Tame glare and shiny spots. Raising minimum roughness and lowering metalness spreads or removes sharp highlights. The highlight limit softly caps anything too bright after lighting.'],
   ['r','rMin','Minimum roughness',0,1,.01],['r','mMul','Metalness multiplier',0,1,.01],['r','sunDisc','Sun reflection glint',0,2,.01],['r','env','Sky reflection strength',0,4,.05],['r','hlim','Highlight limit (0 = off)',0,8,.05],
@@ -939,9 +975,9 @@ function layerState(lay){const gv=ground.visible,fv=floorM.visible,gd=gridM.visi
 async function renderPng(L,sh,fm){fm=fm||0;
  if(busy)return null;busy=true;clearTimeout(dynT);dynF=1;toast('Rendering...');await new Promise(r=>setTimeout(r,60));
  const FW=view.clientWidth||1,FH=view.clientHeight||1,asp=FW/FH,maxDim=Math.min(renderer.capabilities.maxTextureSize,8192),maxPx=coarse?14e6:36e6;
- const prevMap=sun.shadow.mapSize.x,hi=Math.min(4096,renderer.capabilities.maxTextureSize),vis=tc.visible,bv=boneGrp.visible,bgS=scene.background,gdv=gridM.visible,lgv=lightGrp.visible;let out=null,note='';
+ const pmv=pivMk.visible,prevMap=sun.shadow.mapSize.x,hi=Math.min(4096,renderer.capabilities.maxTextureSize),vis=tc.visible,bv=boneGrp.visible,bgS=scene.background,gdv=gridM.visible,lgv=lightGrp.visible;let out=null,note='';
  try{
-  tc.visible=false;boneGrp.visible=false;gridM.visible=false;lightGrp.visible=false;scene.background=(S.transp||L)?null:bgS;
+  tc.visible=false;boneGrp.visible=false;gridM.visible=false;lightGrp.visible=false;pivMk.visible=false;scene.background=(S.transp||L)?null:bgS;
   if(S.shadows){sun.shadow.mapSize.set(hi,hi);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null;}}
   const dims=(L,a)=>a>=1?[L,L/a]:[L*a,L];
   let rect=null,ar=asp,w,h,s;
